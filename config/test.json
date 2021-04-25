@@ -1,0 +1,12 @@
+{
+    "server": {
+        "port": 3000
+    },
+    "prefix": "manifest-filter",
+    "DATA_DIR": "/tmp",
+    "HLS_PLAYLIST_NAME": "playlist.m3u8",
+    "NAME_CONCAT": "timeshifting",
+    "TIMEOUT_CHECK": 5000,
+    "TIME_REMOVE": 2000,
+    "TIME_CACHE": 60
+}
