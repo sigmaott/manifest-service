@@ -1,4 +1,4 @@
-import { Controller, DefaultValuePipe, Get, ParseBoolPipe, ParseIntPipe, Query, Req, Res } from '@nestjs/common';
+import { Controller, DefaultValuePipe, Get, HttpCode, ParseBoolPipe, ParseIntPipe, Query, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AppService } from './service';
 import * as status from 'http-status';
@@ -8,6 +8,7 @@ import * as config from 'config';
 export class AppController {
   constructor(private appService: AppService) {}
   @Get(`${config.prefix}/*`)
+  @HttpCode(200)
   async getStreams(
     @Query('media', new DefaultValuePipe(false), ParseBoolPipe) isMedia: boolean,
     @Query('manifestfilter') manifestfilter: string,
@@ -18,10 +19,10 @@ export class AppController {
     @Res() response: Response,
   ) {
     const requestPath = request.path || request.url;
-    const filePath = requestPath.split(`/${config.prefix}/`)[1];
+    const filePath = 'manifest' + '/' + requestPath.split(`/${config.prefix}/`)[1];
     try {
       const { manifest, contentType } = await this.appService.manifestFiltering(filePath, manifestfilter, startTime, stopTime, timeShift, isMedia);
-      response.type(contentType);
+      response.setHeader('Content-Type', contentType);
       return manifest;
     } catch (error) {
       console.error(error);
