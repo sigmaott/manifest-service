@@ -8,7 +8,7 @@ import * as config from 'config';
 export class AppController {
   constructor(private appService: AppService) {}
   @Get(`${config.prefix}/*`)
-  @HttpCode(200)
+  @HttpCode(status.OK)
   async getStreams(
     @Query('media', new DefaultValuePipe(false), ParseBoolPipe) isMedia: boolean,
     @Query('manifestfilter') manifestfilter: string,
@@ -23,7 +23,7 @@ export class AppController {
     try {
       const { manifest, contentType } = await this.appService.manifestFiltering(filePath, manifestfilter, startTime, stopTime, timeShift, isMedia);
       response.setHeader('Content-Type', contentType);
-      return manifest;
+      return response.send(manifest);
     } catch (error) {
       console.error(error);
       if (error.message) {
