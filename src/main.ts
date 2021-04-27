@@ -6,7 +6,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
 const port = config.server.port;
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter({ logger: true }));
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
   app.use(morgan('combined'));
   await app.listen(port, '0.0.0.0');
 }

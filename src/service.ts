@@ -53,8 +53,8 @@ export class AppService {
     playlist.variants = variants;
     for (let i = 0; i < variants.length; i++) {
       const variant = variants[i];
-      if (config.prefix && (startTime || stopTime || timeShift)) {
-        variant.uri = path.join('/', config.prefix, `${variant.uri}?${this.utils.genPlaylistQuery(startTime, stopTime, timeShift)}`);
+      if (startTime || stopTime || timeShift) {
+        variant.uri = path.join('/', `${variant.uri}?${this.utils.genPlaylistQuery(startTime, stopTime, timeShift)}`);
       }
     }
     return HLS.stringify(playlist);
