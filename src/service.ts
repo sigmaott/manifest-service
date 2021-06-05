@@ -1,4 +1,4 @@
-import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, CACHE_MANAGER, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Utils } from './utils';
 import { Consts, ManifestContentTypeEnum } from './consts';
 import * as config from 'config';
@@ -327,8 +327,7 @@ export class AppService {
     // check query timeshift
     const manifestType = path.extname(filePath) === '.m3u8' ? 'hls' : path.extname(filePath) === '.mpd' ? 'dash' : null;
     if (!manifestType) {
-      const err = 'This file not is a master playlist';
-      throw err;
+      throw new BadRequestException('This file not is a master playlist');
     }
     const isRawRequest = this.utils.isRawRequest(startTime, stopTime, timeShift, query);
     if (!isMedia && (timeShift > 30 || (startTime > 0 && stopTime > 0)) && manifestType === 'hls') {
@@ -337,8 +336,7 @@ export class AppService {
     }
     if (!isMedia) {
       if (!(await this.redisFsService.exist(filePath))) {
-        const err = 'file not found';
-        throw err;
+        throw new NotFoundException('file not found');
       }
       if (isRawRequest) {
         return {

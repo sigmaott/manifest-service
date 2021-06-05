@@ -20,16 +20,8 @@ export class AppController {
   ) {
     const requestPath = request.path || request.url;
     const filePath = 'manifest' + '/' + requestPath.split(`/${config.prefix}/`)[1];
-    try {
-      const { manifest, contentType } = await this.appService.manifestFiltering(filePath, manifestfilter, startTime, stopTime, timeShift, isMedia);
-      response.setHeader('Content-Type', contentType);
-      return response.send(manifest);
-    } catch (error) {
-      console.error(error);
-      if (error.message) {
-        return response.status(status.BAD_REQUEST).send({ msg: 'Có lỗi xảy ra, xin vui lòng thử lại' });
-      }
-      return response.status(status.BAD_REQUEST).send({ msg: 'Có lỗi xảy ra, xin vui lòng thử lại' });
-    }
+    const { manifest, contentType } = await this.appService.manifestFiltering(filePath, manifestfilter, startTime, stopTime, timeShift, isMedia);
+    response.setHeader('Content-Type', contentType);
+    return response.send(manifest);
   }
 }
