@@ -64,12 +64,11 @@ export class AppService {
     if (!this.utils.validDashMpd(mpd)) return {};
     if (timeShift > 30 || (startTime && stopTime)) {
       // need to handle timeshifting
-      const channelId = mpd.MPD['@_channelId'];
       const targetId = mpd.MPD['@_targetId'];
-      if (!channelId || !targetId) {
+      if (!targetId) {
         return '';
       }
-      const dirname = path.join('manifest', channelId, targetId);
+      const dirname = path.join('manifest', targetId);
       if (timeShift > 30) {
         mpd = await this.genDashTimeshiftPlaylist(dirname, moment().subtract(timeShift + 120, 'seconds'), moment().subtract(timeShift, 'seconds'), true);
       } else {
