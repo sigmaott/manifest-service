@@ -9,8 +9,12 @@ import * as parser from 'fast-xml-parser';
 import * as he from 'he';
 import { RedisFsService } from './redis-fs';
 import { Cache } from 'cache-manager';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const moment = require('moment');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const momentDurationFormatSetup = require('moment-duration-format');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const JSONparser = require('fast-xml-parser').j2xParser;
 
 const DefaultOptions = {
@@ -261,9 +265,9 @@ export class AppService {
             break;
           } else {
             segTemResult.SegmentTimeline.S = resultSegment;
-            if (config.CATCHUP_REPLACE && !live) {
-              segTemResult['@_initialization'] = segTemResult['@_initialization'].replace(new RegExp('/media-static/[1-9abcdef]*'), config.CATCHUP_REPLACE);
-              segTemResult['@_media'] = segTemResult['@_media'].replace(new RegExp('/media-static/[1-9abcdef]*'), config.CATCHUP_REPLACE);
+            if (config.catchup_replace && !live) {
+              segTemResult['@_initialization'] = segTemResult['@_initialization'].replace(new RegExp('/media-static/[1-9abcdef]*'), config.catchup_replace);
+              segTemResult['@_media'] = segTemResult['@_media'].replace(new RegExp('/media-static/[1-9abcdef]*'), config.catchup_replace);
             }
             adapSetResult.SegmentTemplate = segTemResult;
             if (needMergePeriod) {
@@ -332,7 +336,7 @@ export class AppService {
     const isRawRequest = this.utils.isRawRequest(startTime, stopTime, timeShift, query);
     if (!isMedia && (timeShift > 30 || (startTime > 0 && stopTime > 0)) && manifestType === 'hls') {
       filePath = filePath.split('.m3u8')[0];
-      filePath = filePath + '-' + config.NAME_CONCAT + '.m3u8';
+      filePath = filePath + '-' + config.name_concat + '.m3u8';
     }
     if (!isMedia) {
       if (!(await this.redisFsService.exist(filePath))) {
@@ -416,8 +420,8 @@ export class AppService {
         //     );
         //   }
         // }
-        if (config.CATCHUP_REPLACE) {
-          segment.uri = segment.uri.replace(new RegExp('/media-static/[1-9abcdef]*'), config.CATCHUP_REPLACE);
+        if (config.catchup_replace) {
+          segment.uri = segment.uri.replace(new RegExp('/media-static/[1-9abcdef]*'), config.catchup_replace);
         }
         delete segment.programDateTime;
         resultPlaylist.segments.push(segment);

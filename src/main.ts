@@ -13,12 +13,14 @@ async function bootstrap() {
   app.use(helmet());
   // app.use(morgan('combined'));
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.disable('x-powered-by');
   enableLogRequest(app);
   await app.listen(port, '0.0.0.0');
 }
 
 function enableLogRequest(app: INestApplication) {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
   const logger = new Logger('HTTPRequest');
   const format = ':remote-addr - :remote-user ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" ":response-time ms"';
 
