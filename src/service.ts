@@ -420,7 +420,7 @@ export class AppService {
         //   }
         // }
         if (config.catchup_replace) {
-          segment.uri = segment.uri.replace(new RegExp('/media-static/[1-9abcdef]*'), config.catchup_replace);
+          segment.uri = segment.uri.replace(new RegExp('/media-static/[0-9abcdef]*'), config.catchup_replace);
         }
         delete segment.programDateTime;
         resultPlaylist.segments.push(segment);
