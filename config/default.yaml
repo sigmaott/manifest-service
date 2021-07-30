@@ -2,7 +2,9 @@
 server:
   port: 3000
 prefix: dev-origin
-name_concat: timeshifting
+name_concat:
+  catchup: timeshifting
+  startover: 'startover'
 catchup_replace: ''
 redis:
   host: localhost

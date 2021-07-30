@@ -64,8 +64,9 @@ export class AppService {
     return HLS.stringify(playlist);
   }
 
-  async genDashMasterPlaylist(mpd, startTime, stopTime, timeShift, query) {
-    if (!this.utils.validDashMpd(mpd)) return {};
+  async genDashMasterPlaylist(filePath: string, startTime: number, stopTime: number, timeShift: number, query): Promise<string> {
+    let mpd = parser.parse(await this.redisFsService.read(filePath), DefaultOptions);
+    if (!this.utils.validDashMpd(mpd)) return '';
     if (timeShift > 30 || (startTime && stopTime)) {
       // need to handle timeshifting
       const targetId = mpd.MPD['@_targetId'];
@@ -74,9 +75,15 @@ export class AppService {
       }
       const dirname = path.join('manifest', targetId);
       if (timeShift > 30) {
-        mpd = await this.genDashTimeshiftPlaylist(dirname, moment().subtract(timeShift + 120, 'seconds'), moment().subtract(timeShift, 'seconds'), true);
+        mpd = await this.genDashTimeshiftPlaylist(
+          dirname,
+          path.basename(filePath, 'mpd'),
+          moment().subtract(timeShift + 120, 'seconds'),
+          moment().subtract(timeShift, 'seconds'),
+          true,
+        );
       } else {
-        mpd = await this.genDashTimeshiftPlaylist(dirname, moment(startTime * 1000), moment(stopTime * 1000), false);
+        mpd = await this.genDashTimeshiftPlaylist(dirname, path.basename(filePath, 'mpd'), moment(startTime * 1000), moment(stopTime * 1000), false);
       }
     }
     const periods = this.utils.convertObjectToArray(mpd?.MPD?.Period);
@@ -134,7 +141,7 @@ export class AppService {
    * @param live
    * @returns
    */
-  async genDashTimeshiftPlaylist(dirname: any, start: any, stop: any, live: boolean): Promise<string> {
+  async genDashTimeshiftPlaylist(dirname: any, baseName: string, start: any, stop: any, live: boolean): Promise<string> {
     this.utils.checkValidQueryPlayBack(start, stop);
     const compareTime = stop.diff(start, 'hour') + 1;
     let resultPlaylist = null;
@@ -143,10 +150,11 @@ export class AppService {
     let availableTimeStart = null;
     let lastPeriod = null;
     let initTime = 0;
+    const fileName = `${baseName}-${live ? config.name_concat?.startover : config.name_concat.catchup}.mpd`;
     for (let j = 0; j <= compareTime; j++) {
       const current = moment(start).utc();
       current.add(j, 'hour');
-      const currentTimePath = path.join(dirname, current.format('YYYYMMDDHH'), 'master.mpd');
+      const currentTimePath = path.join(dirname, current.format('YYYYMMDDHH'), fileName);
       const currentPlaylistString = await this.getManifestFromPath(currentTimePath, current);
       if (!currentPlaylistString) {
         continue;
@@ -265,8 +273,8 @@ export class AppService {
           } else {
             segTemResult.SegmentTimeline.S = resultSegment;
             if (config.catchup_replace && !live) {
-              segTemResult['@_initialization'] = segTemResult['@_initialization'].replace(new RegExp('/media-static/[1-9abcdef]*'), config.catchup_replace);
-              segTemResult['@_media'] = segTemResult['@_media'].replace(new RegExp('/media-static/[1-9abcdef]*'), config.catchup_replace);
+              segTemResult['@_initialization'] = segTemResult['@_initialization'].replace(new RegExp('/media-static/[0-9abcdef]*'), config.catchup_replace);
+              segTemResult['@_media'] = segTemResult['@_media'].replace(new RegExp('/media-static/[0-9abcdef]*'), config.catchup_replace);
             }
             adapSetResult.SegmentTemplate = segTemResult;
             if (needMergePeriod) {
@@ -333,9 +341,13 @@ export class AppService {
       throw new BadRequestException('This file not is a master playlist');
     }
     const isRawRequest = this.utils.isRawRequest(startTime, stopTime, timeShift, query);
-    if (!isMedia && (timeShift > 30 || (startTime > 0 && stopTime > 0)) && manifestType === 'hls') {
+    if (!isMedia && !isRawRequest && manifestType === 'hls') {
       filePath = filePath.split('.m3u8')[0];
-      filePath = filePath + '-' + config.name_concat + '.m3u8';
+      if (timeShift > 30) {
+        filePath = filePath + '-' + config.name_concat?.startover + '.m3u8';
+      } else {
+        filePath = filePath + '-' + config.name_concat?.catchup + '.m3u8';
+      }
     }
     if (!isMedia) {
       if (!(await this.redisFsService.exist(filePath))) {
@@ -354,13 +366,7 @@ export class AppService {
         }
       } else if (manifestType === 'dash') {
         return {
-          manifest: await this.genDashMasterPlaylist(
-            parser.parse(await this.redisFsService.read(filePath), DefaultOptions),
-            startTime,
-            stopTime,
-            timeShift,
-            query,
-          ),
+          manifest: await this.genDashMasterPlaylist(filePath, startTime, stopTime, timeShift, query),
           contentType: ManifestContentTypeEnum.DASH,
         };
       }
