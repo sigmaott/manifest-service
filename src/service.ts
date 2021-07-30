@@ -83,7 +83,7 @@ export class AppService {
           true,
         );
       } else {
-        mpd = await this.genDashTimeshiftPlaylist(dirname, path.basename(filePath, 'mpd'), moment(startTime * 1000), moment(stopTime * 1000), false);
+        mpd = await this.genDashTimeshiftPlaylist(dirname, path.basename(filePath, '.mpd'), moment(startTime * 1000), moment(stopTime * 1000), false);
       }
     }
     const periods = this.utils.convertObjectToArray(mpd?.MPD?.Period);
