@@ -77,7 +77,7 @@ export class AppService {
       if (timeShift > 30) {
         mpd = await this.genDashTimeshiftPlaylist(
           dirname,
-          path.basename(filePath, 'mpd'),
+          path.basename(filePath, '.mpd'),
           moment().subtract(timeShift + 120, 'seconds'),
           moment().subtract(timeShift, 'seconds'),
           true,
