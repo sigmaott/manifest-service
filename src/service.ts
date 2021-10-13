@@ -338,7 +338,13 @@ export class AppService {
     // check query timeshift
     const manifestType = path.extname(filePath) === '.m3u8' ? 'hls' : path.extname(filePath) === '.mpd' ? 'dash' : null;
     if (!manifestType) {
-      throw new BadRequestException('This file not is a master playlist');
+      if (!(await this.redisFsService.exist(filePath))) {
+        throw new NotFoundException('file not found');
+      }
+      return {
+        manifest: await this.redisFsService.read(filePath),
+        contentType: path.extname(filePath) === '.f4m' ? ManifestContentTypeEnum.HDS : path.extname(filePath) === '' ? ManifestContentTypeEnum.MSS : null,
+      };
     }
     const isRawRequest = this.utils.isRawRequest(startTime, stopTime, timeShift, query);
     if (!isMedia && !isRawRequest && manifestType === 'hls') {

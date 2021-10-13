@@ -1,6 +1,8 @@
 export enum ManifestContentTypeEnum {
   HLS = 'application/vnd.apple.mpegurl',
   DASH = 'application/dash+xml',
+  MSS = 'application/vnd.ms-sstr+xml',
+  HDS = 'application/f4m+xml',
 }
 
 export class Consts {
