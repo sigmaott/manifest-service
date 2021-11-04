@@ -1,7 +1,7 @@
 ---
 server:
   port: 3000
-prefix: dev-origin
+prefix: manifest-service
 name_concat:
   catchup: timeshifting
   startover: 'startover'
@@ -9,5 +9,3 @@ catchup_replace: ''
 redis:
   host: localhost
   port: 6379
-  password: PaUH0t1zGU
-

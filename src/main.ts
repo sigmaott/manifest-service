@@ -4,8 +4,8 @@ import * as morgan from 'morgan';
 import * as config from 'config';
 import * as helmet from 'helmet';
 import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
-import { INestApplication, Logger } from '@nestjs/common';
-import { AllExceptionsFilter } from './http-exception.filter';
+import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
+import { AllExceptionsFilter } from './helper/http-exception.filter';
 const port = config.server.port;
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
@@ -13,7 +13,9 @@ async function bootstrap() {
   app.use(helmet());
   // app.use(morgan('combined'));
   app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   enableLogRequest(app);
+  app.enableShutdownHooks();
   await app.listen(port, '0.0.0.0');
 }
 

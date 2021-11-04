@@ -17,6 +17,8 @@ variables:
   REGISTRY_GROUP: sigma-livestream
   HARBOR_IMAGE_TAG: $REGISTRY/$REGISTRY_GROUP/$CI_PROJECT_NAME
   DOCKER_IMAGE_TAG: $DOCKER_USERNAME/$CI_PROJECT_NAME
+  DEPLOY_IMAGE: $REGISTRY/$REGISTRY_GROUP/$CI_PROJECT_NAME
+  DEPLOY_SERVICE: manifest-service
 
 
 # :$CI_COMMIT_REF_SLUG
@@ -29,6 +31,7 @@ variables:
 stages:
   - build
   - docker-release
+  - deploy
   # - staging
   # - openMr
   # - production
@@ -39,7 +42,7 @@ image build:
     - dind
   script: 
     - chmod +x ./scripts/create-image.sh
-    - ./scripts/create-image.sh $HARBOR_IMAGE_TAG $BASE_IMAGE $DOCKER_IMAGE_TAG
+    - ./scripts/create-image.sh $HARBOR_IMAGE_TAG $BASE_IMAGE $DOCKER_IMAGE_TAG $CI_COMMIT_SHORT_SHA
 
 release image private registry:
   stage: docker-release
@@ -49,7 +52,7 @@ release image private registry:
     - docker login -u $HARBOR_USERNAME -p $HARBOR_PASSWORD $REGISTRY
   script:
     - chmod +x ./scripts/push-image.sh
-    - ./scripts/push-image.sh $HARBOR_IMAGE_TAG
+    - ./scripts/push-image.sh $HARBOR_IMAGE_TAG $CI_COMMIT_SHORT_SHA
 
 release image docker hub:
   stage: docker-release
@@ -62,121 +65,13 @@ release image docker hub:
     - ./scripts/push-image.sh $DOCKER_IMAGE_TAG
 
 
-# # Test:
-#   stage: test
-#   tags:
-#   - node
-#   before_script: 
-#     - yarn config set cache-folder .yarn
-#     - yarn install 
-#   script:
-#   # Installs Chrome
-#     - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub |  apt-key add -
-#     - echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' |  tee /etc/apt/sources.list.d/google-chrome.list
-#     - apt-get update 
-#     - apt-get install google-chrome-stable -y
-#   # Runs the tests.
-#     - npm run test:karma-headless
-
-
-# .mycloud: &mycloud
-#   - kubectl version
-#   - cd k8s/
-#   - sed -i "s/__CI_BUILD_REF_SLUG__/${CI_COMMIT_REF_SLUG}/" deployment.yaml ingress.yaml service.yaml
-#   - sed -i "s/__PROJECT_NAME__/${CI_PROJECT_NAME}/" deployment.yaml ingress.yaml service.yaml
-#   - sed -i "s/__PROJECT_NAMESPACE__/${CI_PROJECT_NAMESPACE}/" deployment.yaml ingress.yaml service.yaml
-#   - sed -i "s/__DOCKER_IMAGE__/$CI_REGISTRY\/$CI_PROJECT_NAMESPACE\/$CI_PROJECT_NAME:$CI_COMMIT_REF_SLUG/" deployment.yaml
-#   - |
-#     if kubectl get secrets -n $CI_PROJECT_NAMESPACE | grep myregistry; then
-#       echo 'myregistry created'
-#     else
-#       kubectl create secret docker-registry myregistry --docker-server=$CI_REGISTRY --docker-username=$CI_REGISTRY_USERNAME --docker-password=$CI_REGISTRY_PASSWORD --docker-email=$CI_REGISTRY_EMAIL --namespace=$CI_PROJECT_NAMESPACE
-#       echo "docker registry created"
-#     fi
-
-# .prod_deploy: &prod_deploy
-#   image: lachlanevenson/k8s-kubectl:latest
-#   stage: production
-#   tags:
-#     - staging
-#     - dind
-#   environment:
-#     name: production
-#     url: https://api.vtvcab-on.gviet.vn
-#   before_script: *mycloud
-#   script:
-#     - sed -i "s/__K8S_HOST__/api.vtvcab-on.gviet.vn/" ingress.yaml
-#     - kubectl apply -f deployment.yaml
-#     - kubectl apply -f service.yaml
-#     - kubectl apply -f ingress.yaml
-#     - kubectl rollout status -f deployment.yaml
-#     - kubectl get all,ing -n $CI_PROJECT_NAMESPACE -l app=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}
-
-# .staging_deploy: &staging_deploy
-#   image: lachlanevenson/k8s-kubectl:latest
-#   stage: review
-#   tags:
-#     - staging
-#   environment:
-#     name: review/$CI_COMMIT_REF_SLUG_NAME
-#     url: https://api.vtvcab-on.staging.gviet.vn
-#     on_stop: stop_review
-#   before_script: *mycloud
-#   script:
-#     - sed -i "s/__K8S_HOST__/${K8S_HOST}/" ingress.yaml
-#     - |
-#       if kubectl apply -f deployment.yaml | grep -q unchanged; then
-#           echo "=> Patching deployment to force image update."
-#           kubectl patch -f deployment.yaml -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"ci-last-updated\":\"$(date +'%s')\"}}}}}"
-#       else
-#           echo "=> Deployment apply has changed the object, no need to force image update."
-#       fi
-#     - kubectl apply -f service.yaml || true
-#     - kubectl apply -f ingress.yaml
-#     - kubectl rollout status -f deployment.yaml
-#     - kubectl get all,ing -n $CI_PROJECT_NAMESPACE -l app=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}
-
-# stop_review:
-#   image: lachlanevenson/k8s-kubectl:latest
-#   stage: review
-#   before_script: []
-#   tags:
-#     - staging
-#   variables:
-#     GIT_STRATEGY: none
-#   when: manual
-#   only:
-#     - branches
-#   except:
-#     - master
-#     - tags
-#   environment:
-#     name: review/$CI_COMMIT_REF_SLUG_NAME
-#     action: stop
-#   script:
-#     - kubectl version
-#     - kubectl delete ing -n $CI_PROJECT_NAMESPACE -l app=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}
-#     - kubectl delete all -n $CI_PROJECT_NAMESPACE -l app=${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}
-
-# auto-deploy-master:
-#   <<: *staging_deploy
-#   only:
-#     - master
-
-# auto-deploy-tags:
-#   <<: *prod_deploy
-#   only:
-#     - tags
-
-# deploy to staging:
-#   <<: *staging_deploy
-#   when: manual
-#   except:
-#     - master
-#     - tags
-
-# deploy to production:
-#   <<: *prod_deploy
-#   when: manual
-#   only:
-#     - master
+deploy to dev:
+  stage: deploy
+  only:
+    - develop
+  variables:
+    DEPLOY_ENVIRONMENT: develop
+    DEPLOY_IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  trigger:
+    project: sigma-livestream/k8s-infra-dev
+    branch: master

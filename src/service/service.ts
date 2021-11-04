@@ -1,14 +1,18 @@
-import { BadRequestException, CACHE_MANAGER, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Utils } from './utils';
-import { Consts, ManifestContentTypeEnum } from './consts';
+import { BadRequestException, CACHE_MANAGER, Inject, Injectable, NotFoundException, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { Utils } from '../helper/utils';
+import { Consts, ManifestContentTypeEnum } from '../helper/consts';
 import * as config from 'config';
 import * as path from 'path';
 import * as HLS from 'hls-parser';
 import * as lodash from 'lodash';
+import * as events from 'events';
 import * as parser from 'fast-xml-parser';
-import * as he from 'he';
-import { RedisFsService } from './redis-fs';
+import { RedisFsService } from '../redis-fs';
 import { Cache } from 'cache-manager';
+import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
+import { DefaultOptions } from 'src/helper/dash.helper';
+import { IHlsManifestUpdate } from 'src/interface/hls.interface';
+import { Moment } from 'moment';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const moment = require('moment');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -17,32 +21,23 @@ const momentDurationFormatSetup = require('moment-duration-format');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const JSONparser = require('fast-xml-parser').j2xParser;
 
-const DefaultOptions = {
-  attributeNamePrefix: '@_',
-  // attrNodeName: 'false', // default is 'false'
-  textNodeName: '#text',
-  ignoreAttributes: false,
-  ignoreNameSpace: false,
-  allowBooleanAttributes: false,
-  parseNodeValue: true,
-  parseAttributeValue: false,
-  trimValues: true,
-  format: true,
-  cdataTagName: '__cdata', // default is 'false'
-  cdataPositionChar: '\\c',
-  localeRange: '', // To support non english character in tag/attribute values.
-  parseTrueNumberOnly: false,
-  attrValueProcessor: (a) => he.decode(a, { isAttributeValue: true }), // default is a=>a
-  tagValueProcessor: (a) => he.decode(a), // default is a=>a
-};
-
 const JsonParser = new JSONparser(DefaultOptions);
 
 @Injectable()
-export class AppService {
+export class AppService implements OnModuleInit {
+  private readonly _manifestEvent = new events.EventEmitter();
+
+  public get manifestEvent() {
+    return this._manifestEvent;
+  }
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache, private utils: Utils, private consts: Consts, private redisFsService: RedisFsService) {}
 
-  genHLSMasterPlaylist(playlist, startTime, stopTime, timeShift, query) {
+  onModuleInit() {
+    this._manifestEvent.setMaxListeners(Infinity);
+  }
+
+  genHLSMasterPlaylist(playlist, manifestDto: ManifestFilteringDto, query): string {
+    const { start, stop, timeshift } = manifestDto;
     let variants = playlist.variants;
     if (lodash.isArray(query.video_bitrate) && query.video_bitrate.length === 2) {
       variants = variants.filter((v) => {
@@ -57,33 +52,34 @@ export class AppService {
     playlist.variants = variants;
     for (let i = 0; i < variants.length; i++) {
       const variant = variants[i];
-      if (startTime || stopTime || timeShift) {
-        variant.uri = path.join('/', `${variant.uri}?${this.utils.genPlaylistQuery(startTime, stopTime, timeShift)}`);
+      if (start || stop || timeshift) {
+        variant.uri = path.join('/', `${variant.uri}?${this.utils.genPlaylistQuery(manifestDto)}`);
       }
     }
     return HLS.stringify(playlist);
   }
 
-  async genDashMasterPlaylist(filePath: string, startTime: number, stopTime: number, timeShift: number, query): Promise<string> {
+  async genDashMasterPlaylist(filePath: string, manifestDto: ManifestFilteringDto, query): Promise<string> {
+    const { start, stop, timeshift } = manifestDto;
     let mpd = parser.parse(await this.redisFsService.read(filePath), DefaultOptions);
     if (!this.utils.validDashMpd(mpd)) return '';
-    if (timeShift > 30 || (startTime && stopTime)) {
+    if (timeshift || (start && stop)) {
       // need to handle timeshifting
       const targetId = mpd.MPD['@_targetId'];
       if (!targetId) {
         return '';
       }
       const dirname = path.join('manifest', targetId);
-      if (timeShift > 30) {
+      if (timeshift) {
         mpd = await this.genDashTimeshiftPlaylist(
           dirname,
           path.basename(filePath, '.mpd'),
-          moment().subtract(timeShift + 120, 'seconds'),
-          moment().subtract(timeShift, 'seconds'),
+          moment().subtract(timeshift + 120, 'seconds'),
+          moment().subtract(timeshift, 'seconds'),
           true,
         );
       } else {
-        mpd = await this.genDashTimeshiftPlaylist(dirname, path.basename(filePath, '.mpd'), moment(startTime * 1000), moment(stopTime * 1000), false);
+        mpd = await this.genDashTimeshiftPlaylist(dirname, path.basename(filePath, '.mpd'), moment(start * 1000), moment(stop * 1000), false);
       }
     }
     const periods = this.utils.convertObjectToArray(mpd?.MPD?.Period);
@@ -141,7 +137,7 @@ export class AppService {
    * @param live
    * @returns
    */
-  async genDashTimeshiftPlaylist(dirname: any, baseName: string, start: any, stop: any, live: boolean): Promise<string> {
+  async genDashTimeshiftPlaylist(dirname: any, baseName: string, start: Moment, stop: Moment, live: boolean): Promise<string> {
     this.utils.checkValidQueryPlayBack(start, stop);
     const compareTime = stop.diff(start, 'hour') + 1;
     let resultPlaylist = null;
@@ -313,26 +309,76 @@ export class AppService {
     return resultPlaylist;
   }
 
-  async genHLSMediaPlaylist(startTime: number, stopTime: number, timeShift: number, filePath: string) {
-    if (startTime && stopTime) {
-      const start = moment(startTime * 1000);
-      const stop = moment(stopTime * 1000);
-      this.utils.checkValidQueryPlayBack(start, stop);
-      return this.getDvrPlaylistNotTimeShift(start, stop, filePath);
-    } else if (timeShift > 30) {
-      return this.getDvrPlaylistTimeShift(timeShift, filePath);
+  async genHLSMediaPlaylist(manifestDto: ManifestFilteringDto, filePath: string): Promise<string> {
+    const { start, stop, timeshift, _HLS_msn, _HLS_part } = manifestDto;
+    if (_HLS_msn || _HLS_part) {
+      // handle low latency hls
+      return this.genLLHLSMediaPlaylist(manifestDto, filePath);
+    } else if (start && stop) {
+      const startTime = moment(start * 1000);
+      const stopTime = moment(stop * 1000);
+      this.utils.checkValidQueryPlayBack(startTime, stopTime);
+      return this.getDvrPlaylistNotTimeShift(startTime, stopTime, filePath);
+    } else if (timeshift) {
+      return this.getDvrPlaylistTimeShift(timeshift, filePath);
     }
     return '';
   }
 
-  async manifestFiltering(
-    filePath: string,
-    manifestfilter: string | undefined,
-    startTime: number,
-    stopTime: number,
-    timeShift: number,
-    isMedia: boolean,
-  ): Promise<{ manifest: any; contentType: string }> {
+  async genLLHLSMediaPlaylist(manifestDto: ManifestFilteringDto, filePath: string): Promise<string> {
+    const { _HLS_msn, _HLS_part } = manifestDto;
+    const cacheManifest = await this.cacheManager.get<IHlsManifestUpdate>(`LLHLS-${filePath}`);
+    console.log('cacheManifest: ', cacheManifest, filePath);
+    if (!cacheManifest) {
+      return await this.redisFsService.read(filePath);
+    }
+    if (_HLS_part && !_HLS_msn) {
+      throw new BadRequestException('_HLS_msn must be exist');
+    }
+    if (_HLS_msn > cacheManifest.msn + 2) {
+      throw new BadRequestException('_HLS_msn greater then current 2 segment');
+    }
+
+    if (_HLS_msn && !_HLS_part) {
+      if (_HLS_msn <= cacheManifest.msn) {
+        return this.redisFsService.read(filePath);
+      } else {
+        return this.deferLLHLSRequest(filePath);
+      }
+    } else {
+      if (_HLS_msn < cacheManifest.msn) {
+        return await this.redisFsService.read(filePath);
+      } else if (_HLS_msn === cacheManifest.msn) {
+        if (_HLS_part <= cacheManifest.part) {
+          return this.redisFsService.read(filePath);
+        } else {
+          return this.deferLLHLSRequest(filePath);
+        }
+      } else {
+        return this.deferLLHLSRequest(filePath);
+      }
+    }
+  }
+
+  async deferLLHLSRequest(filePath: string) {
+    try {
+      await new Promise((resolve, reject) => {
+        this.manifestEvent.once(filePath, resolve);
+        setTimeout(() => {
+          console.log('timeout');
+          this.manifestEvent.removeListener(filePath, resolve);
+          console.log('listener count: ', this.manifestEvent.listenerCount(filePath));
+          reject();
+        }, 5000);
+      });
+      return this.redisFsService.read(filePath);
+    } catch (error) {
+      throw new ServiceUnavailableException('long time to wait playlist');
+    }
+  }
+
+  async manifestFiltering(filePath: string, manifestDto: ManifestFilteringDto): Promise<{ manifest: any; contentType: string }> {
+    const { start, stop, timeshift, manifestfilter, media } = manifestDto;
     const query = this.utils.getValueQuery(manifestfilter);
     // this.utils.checkValidFormatPlayListHLS(filePath)
     // check query timeshift
@@ -346,16 +392,16 @@ export class AppService {
         contentType: path.extname(filePath) === '.f4m' ? ManifestContentTypeEnum.HDS : path.extname(filePath) === '' ? ManifestContentTypeEnum.MSS : null,
       };
     }
-    const isRawRequest = this.utils.isRawRequest(startTime, stopTime, timeShift, query);
-    if (!isMedia && !isRawRequest && manifestType === 'hls') {
+    const isRawRequest = this.utils.isRawRequest(start, stop, timeshift, query);
+    if (!media && !isRawRequest && manifestType === 'hls') {
       filePath = filePath.split('.m3u8')[0];
-      if (timeShift > 30) {
+      if (timeshift) {
         filePath = filePath + '-' + config.name_concat?.startover + '.m3u8';
       } else {
         filePath = filePath + '-' + config.name_concat?.catchup + '.m3u8';
       }
     }
-    if (!isMedia) {
+    if (!media) {
       if (!(await this.redisFsService.exist(filePath))) {
         throw new NotFoundException('file not found');
       }
@@ -368,19 +414,21 @@ export class AppService {
       if (manifestType === 'hls') {
         const playlist = HLS.parse(await this.redisFsService.read(filePath));
         if (playlist.isMasterPlaylist) {
-          return { manifest: this.genHLSMasterPlaylist(playlist, startTime, stopTime, timeShift, query), contentType: ManifestContentTypeEnum.HLS };
+          return { manifest: this.genHLSMasterPlaylist(playlist, manifestDto, query), contentType: ManifestContentTypeEnum.HLS };
         }
       } else if (manifestType === 'dash') {
         return {
-          manifest: await this.genDashMasterPlaylist(filePath, startTime, stopTime, timeShift, query),
+          manifest: await this.genDashMasterPlaylist(filePath, manifestDto, query),
           contentType: ManifestContentTypeEnum.DASH,
         };
       }
     }
-    return { manifest: await this.genHLSMediaPlaylist(startTime, stopTime, timeShift, filePath), contentType: ManifestContentTypeEnum.HLS };
+    // handle hls media play list
+    console.log('object');
+    return { manifest: await this.genHLSMediaPlaylist(manifestDto, filePath), contentType: ManifestContentTypeEnum.HLS };
   }
 
-  async getDvrPlaylistNotTimeShift(start, stop, filePath): Promise<string> {
+  async getDvrPlaylistNotTimeShift(start: Moment, stop: Moment, filePath: string): Promise<string> {
     const dirname = path.dirname(filePath);
     const nameFile = path.basename(filePath);
     const compareTime = stop.diff(start, 'hour') + 1;
@@ -514,7 +562,7 @@ export class AppService {
     return HLS.stringify(resultPlaylist).split(',undefined').join('');
   }
 
-  async getManifestFromPath(filePath, time): Promise<string> {
+  async getManifestFromPath(filePath: string, time: Moment): Promise<string> {
     let data = await this.cacheManager.get(filePath);
     if (data) {
       console.log('get from cache: ', filePath);

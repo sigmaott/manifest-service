@@ -1,9 +1,8 @@
 import { CacheModule } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Consts } from './consts';
-import { AppController } from './controller';
+import { Consts } from '../helper/consts';
 import { AppService } from './service';
-import { Utils } from './utils';
+import { Utils } from '../helper/utils';
 import * as moment from 'moment';
 import { j2xParser as JSONparser } from 'fast-xml-parser';
 import * as he from 'he';

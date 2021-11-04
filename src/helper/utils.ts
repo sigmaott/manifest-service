@@ -4,10 +4,18 @@ import * as path from 'path';
 import * as moment from 'moment';
 import * as qs from 'querystring';
 import * as lodash from 'lodash';
+import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
 
 @Injectable()
 export class Utils {
   constructor(private consts: Consts) {}
+
+  async sleep(ms) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
+
   getValueQuery(manifestfilter: string) {
     if (manifestfilter === undefined) {
       manifestfilter = '';
@@ -171,7 +179,8 @@ export class Utils {
     }
   }
 
-  genPlaylistQuery(start: number, stop: number, timeshift: number) {
+  genPlaylistQuery(manifestDto: ManifestFilteringDto) {
+    const { start, stop, timeshift } = manifestDto;
     const queryPlaylist: any = Object.assign({ media: true }, start ? { start } : null, stop ? { stop } : null, timeshift ? { timeshift } : null);
     return qs.stringify(queryPlaylist);
   }
@@ -216,7 +225,7 @@ export class Utils {
   }
 
   isRawRequest(startTime, stopTime, timeShift, query) {
-    return timeShift < 30 && (!startTime || !stopTime) && !Object.keys(query).length;
+    return !timeShift && (!startTime || !stopTime) && !Object.keys(query).length;
   }
 
   validFilenameManifest(filePath) {
