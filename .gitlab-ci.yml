@@ -53,6 +53,8 @@ release image private registry:
   script:
     - chmod +x ./scripts/push-image.sh
     - ./scripts/push-image.sh $HARBOR_IMAGE_TAG $CI_COMMIT_SHORT_SHA
+  only:
+    - develop
 
 release image docker hub:
   stage: docker-release
@@ -63,6 +65,8 @@ release image docker hub:
   script:
     - chmod +x ./scripts/push-image.sh
     - ./scripts/push-image.sh $DOCKER_IMAGE_TAG
+  only:
+    - master
 
 
 deploy to dev:
