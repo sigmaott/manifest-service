@@ -16,6 +16,10 @@ export class Utils {
     });
   }
 
+  checkFalsy(value) {
+    return value === undefined || value === null;
+  }
+
   getValueQuery(manifestfilter: string) {
     if (manifestfilter === undefined) {
       manifestfilter = '';

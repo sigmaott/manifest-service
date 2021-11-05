@@ -11,7 +11,7 @@ import { RedisFsService } from '../redis-fs';
 import { Cache } from 'cache-manager';
 import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
 import { DefaultOptions } from 'src/helper/dash.helper';
-import { IHlsManifestUpdate } from 'src/interface/hls.interface';
+import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
 import { Moment } from 'moment';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const moment = require('moment');
@@ -310,11 +310,8 @@ export class AppService implements OnModuleInit {
   }
 
   async genHLSMediaPlaylist(manifestDto: ManifestFilteringDto, filePath: string): Promise<string> {
-    const { start, stop, timeshift, _HLS_msn, _HLS_part } = manifestDto;
-    if (_HLS_msn || _HLS_part) {
-      // handle low latency hls
-      return this.genLLHLSMediaPlaylist(manifestDto, filePath);
-    } else if (start && stop) {
+    const { start, stop, timeshift } = manifestDto;
+    if (start && stop) {
       const startTime = moment(start * 1000);
       const stopTime = moment(stop * 1000);
       this.utils.checkValidQueryPlayBack(startTime, stopTime);
@@ -328,35 +325,22 @@ export class AppService implements OnModuleInit {
   async genLLHLSMediaPlaylist(manifestDto: ManifestFilteringDto, filePath: string): Promise<string> {
     const { _HLS_msn, _HLS_part } = manifestDto;
     const cacheManifest = await this.cacheManager.get<IHlsManifestUpdate>(`LLHLS-${filePath}`);
-    console.log('cacheManifest: ', cacheManifest, filePath);
     if (!cacheManifest) {
       return await this.redisFsService.read(filePath);
     }
-    if (_HLS_part && !_HLS_msn) {
+    if (this.utils.checkFalsy(_HLS_msn)) {
       throw new BadRequestException('_HLS_msn must be exist');
     }
     if (_HLS_msn > cacheManifest.msn + 2) {
       throw new BadRequestException('_HLS_msn greater then current 2 segment');
     }
 
-    if (_HLS_msn && !_HLS_part) {
-      if (_HLS_msn <= cacheManifest.msn) {
-        return this.redisFsService.read(filePath);
-      } else {
-        return this.deferLLHLSRequest(filePath);
-      }
+    if (_HLS_msn < cacheManifest.msn) return this.redisFsService.read(filePath);
+
+    if (_HLS_msn > cacheManifest.msn || this.utils.checkFalsy(_HLS_part) || _HLS_part > cacheManifest.part) {
+      return this.deferLLHLSRequest(filePath);
     } else {
-      if (_HLS_msn < cacheManifest.msn) {
-        return await this.redisFsService.read(filePath);
-      } else if (_HLS_msn === cacheManifest.msn) {
-        if (_HLS_part <= cacheManifest.part) {
-          return this.redisFsService.read(filePath);
-        } else {
-          return this.deferLLHLSRequest(filePath);
-        }
-      } else {
-        return this.deferLLHLSRequest(filePath);
-      }
+      return this.redisFsService.read(filePath);
     }
   }
 
@@ -365,9 +349,7 @@ export class AppService implements OnModuleInit {
       await new Promise((resolve, reject) => {
         this.manifestEvent.once(filePath, resolve);
         setTimeout(() => {
-          console.log('timeout');
           this.manifestEvent.removeListener(filePath, resolve);
-          console.log('listener count: ', this.manifestEvent.listenerCount(filePath));
           reject();
         }, 5000);
       });
@@ -378,7 +360,7 @@ export class AppService implements OnModuleInit {
   }
 
   async manifestFiltering(filePath: string, manifestDto: ManifestFilteringDto): Promise<{ manifest: any; contentType: string }> {
-    const { start, stop, timeshift, manifestfilter, media } = manifestDto;
+    const { start, stop, timeshift, manifestfilter, media, _HLS_msn, _HLS_part } = manifestDto;
     const query = this.utils.getValueQuery(manifestfilter);
     // this.utils.checkValidFormatPlayListHLS(filePath)
     // check query timeshift
@@ -401,7 +383,9 @@ export class AppService implements OnModuleInit {
         filePath = filePath + '-' + config.name_concat?.catchup + '.m3u8';
       }
     }
-    if (!media) {
+    if (lodash.isNumber(_HLS_msn) || lodash.isNumber(_HLS_part)) {
+      return { manifest: await this.genLLHLSMediaPlaylist(manifestDto, filePath), contentType: ManifestContentTypeEnum.HLS };
+    } else if (!media) {
       if (!(await this.redisFsService.exist(filePath))) {
         throw new NotFoundException('file not found');
       }
@@ -424,7 +408,6 @@ export class AppService implements OnModuleInit {
       }
     }
     // handle hls media play list
-    console.log('object');
     return { manifest: await this.genHLSMediaPlaylist(manifestDto, filePath), contentType: ManifestContentTypeEnum.HLS };
   }
 

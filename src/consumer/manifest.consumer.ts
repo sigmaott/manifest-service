@@ -2,7 +2,7 @@ import { InjectRedis } from '@liaoliaots/nestjs-redis';
 import { CACHE_MANAGER, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { Redis } from 'ioredis';
-import { IHlsManifestUpdate } from 'src/interface/hls.interface';
+import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
 import { AppService } from 'src/service/service';
 
 @Injectable()
