@@ -376,10 +376,11 @@ export class AppService implements OnModuleInit {
     }
     const isRawRequest = this.utils.isRawRequest(start, stop, timeshift, query);
     if (!media && !isRawRequest && manifestType === 'hls') {
-      filePath = filePath.split('.m3u8')[0];
       if (timeshift) {
+        filePath = filePath.split('.m3u8')[0];
         filePath = filePath + '-' + config.name_concat?.startover + '.m3u8';
-      } else {
+      } else if (start && stop) {
+        filePath = filePath.split('.m3u8')[0];
         filePath = filePath + '-' + config.name_concat?.catchup + '.m3u8';
       }
     }
