@@ -22,8 +22,8 @@ export class ManifestFilteringDto extends UploadFileDto {
   stop: number;
 
   @Type(() => Number)
-  @Min(30)
-  @Max(12 * 60 * 60)
+  @Min(10)
+  @Max(24 * 60 * 60)
   @IsOptional()
   timeshift: number;
 }
