@@ -55,6 +55,7 @@ release image private registry:
     - ./scripts/push-image.sh $HARBOR_IMAGE_TAG $CI_COMMIT_SHORT_SHA
   only:
     - develop
+    - tv360
 
 release image docker hub:
   stage: docker-release
@@ -67,6 +68,7 @@ release image docker hub:
     - ./scripts/push-image.sh $DOCKER_IMAGE_TAG
   only:
     - master
+    - tv360
 
 
 deploy to dev:
