@@ -196,7 +196,13 @@ export class AppService implements OnModuleInit {
         if (!availableTimeStart) {
           availableTimeStart = moment(timeStart).utc();
         }
-        const adapSets = this.utils.convertObjectToArray(period?.AdaptationSet);
+        const adapSets = this.utils.convertObjectToArray(period?.AdaptationSet).sort((a, b) => {
+          if (a['@_contentType'] === 'video') {
+            return -1;
+          }
+          return 1;
+        });
+        let videoCountStartNumber = 0;
         const adapSetsResult = [];
         let allowPeriod = false;
         for (let j = 0; j < adapSets.length; j++) {
@@ -227,13 +233,24 @@ export class AppService implements OnModuleInit {
             let allow = false;
             r = 0;
             for (let x = 0; x < repeatSegment; x++) {
-              if (currentTime.diff(start) < 0) {
+              if (contentType === 'audio' && countStartNumber < videoCountStartNumber) {
                 // remove segment
+                // console.log(currentTime.diff(start), countStartNumber, contentType);
                 segmentTimeInit += parseInt(d);
                 countStartNumber += 1;
                 currentTime.add(parseInt(d) / timeScale, 'seconds');
                 continue;
               }
+
+              if (contentType === 'video' && currentTime.diff(start) < 0) {
+                // remove segment
+                // console.log(currentTime.diff(start), countStartNumber, contentType);
+                segmentTimeInit += parseInt(d);
+                countStartNumber += 1;
+                currentTime.add(parseInt(d) / timeScale, 'seconds');
+                continue;
+              }
+
               if (currentTime.diff(stop) > 0) {
                 periodBreak = true;
                 break;
@@ -261,6 +278,11 @@ export class AppService implements OnModuleInit {
               resultSegment.push(segmentResult);
             }
           }
+
+          if (contentType === 'video') {
+            videoCountStartNumber = countStartNumber;
+          }
+
           segTemResult['@_startNumber'] = (startNumber + countStartNumber).toString();
           if (!live) segTemResult['@_presentationTimeOffset'] = segmentTimeInit.toString();
           if (resultSegment.length === 0) {
