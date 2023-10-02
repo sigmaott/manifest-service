@@ -456,7 +456,7 @@ export class AppService implements OnModuleInit {
         resultPlaylist.endlist = true;
         resultPlaylist.start = undefined;
       }
-      const currentPlaylist = playlist;
+      const currentPlaylist = playlist as any;
       for (let k = 0; k < currentPlaylist.segments.length; k++) {
         const segment = currentPlaylist.segments[k];
         let currentMoment;
@@ -525,7 +525,7 @@ export class AppService implements OnModuleInit {
         resultPlaylist.endlist = false;
         resultPlaylist.start = undefined;
       }
-      const currentPlaylist = playlist;
+      const currentPlaylist = playlist as any;
       for (let k = 0; k < currentPlaylist.segments.length; k++) {
         const segment = currentPlaylist.segments[k];
         let currentMoment;
