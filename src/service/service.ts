@@ -108,6 +108,7 @@ export class AppService implements OnModuleInit {
         // remove AdaptionSet if reps length === 0
         if (reps.length === 0) {
           adaptionSets.splice(j, 1);
+          j--;
           adapLength -= 1;
           continue;
         }
