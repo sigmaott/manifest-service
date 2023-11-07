@@ -40,6 +40,8 @@ image build:
   stage: build
   tags:
     - dind
+  before_script:  
+    - docker login -u $HARBOR_USERNAME -p $HARBOR_PASSWORD $REGISTRY
   script: 
     - chmod +x ./scripts/create-image.sh
     - ./scripts/create-image.sh $HARBOR_IMAGE_TAG $BASE_IMAGE $DOCKER_IMAGE_TAG $CI_COMMIT_SHORT_SHA

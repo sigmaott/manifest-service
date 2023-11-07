@@ -1,5 +1,4 @@
-ARG BASE_IMAGE
-FROM ${BASE_IMAGE} as builder
+FROM registry.gviet.vn:5000/sigma-livestream/node-14-gitlab as builder
 
 # create working dir
 WORKDIR /usr/src/app
@@ -18,7 +17,7 @@ RUN yarn prebuild && yarn build
 # RUN npm install --only=production
 
 ################## 
-FROM ${BASE_IMAGE} as installer
+FROM registry.gviet.vn:5000/sigma-livestream/node-14-gitlab as installer
 
 WORKDIR /usr/src/app
 COPY ./package.json .
