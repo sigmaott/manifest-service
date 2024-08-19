@@ -204,11 +204,16 @@ export class AppService implements OnModuleInit {
           return 1;
         });
         let videoCountStartNumber = 0;
+        let videoAdapId = ''; // video AdaptionSetId
         const adapSetsResult = [];
         let allowPeriod = false;
         for (let j = 0; j < adapSets.length; j++) {
           const adapSet = adapSets[j];
           const contentType = adapSet['@_contentType'];
+          const adapId = adapSet['@_id'];
+
+          if (!videoAdapId && contentType === 'video') videoAdapId = adapId;
+
           const adapSetResult = lodash.cloneDeep(adapSet);
           // delete adapSetResult.SegmentTemplate;
           const segTem = adapSet?.SegmentTemplate;
@@ -234,7 +239,7 @@ export class AppService implements OnModuleInit {
             let allow = false;
             r = 0;
             for (let x = 0; x < repeatSegment; x++) {
-              if (contentType === 'audio' && countStartNumber < videoCountStartNumber) {
+              if (contentType === 'audio' && countStartNumber < videoCountStartNumber && videoAdapId === adapId) {
                 // remove segment
                 // console.log(currentTime.diff(start), countStartNumber, contentType);
                 segmentTimeInit += parseInt(d);
@@ -243,7 +248,7 @@ export class AppService implements OnModuleInit {
                 continue;
               }
 
-              if (contentType === 'video' && currentTime.diff(start) < 0) {
+              if (contentType === 'video' && currentTime.diff(start) < 0 && videoAdapId === adapId) {
                 // remove segment
                 // console.log(currentTime.diff(start), countStartNumber, contentType);
                 segmentTimeInit += parseInt(d);
@@ -262,7 +267,7 @@ export class AppService implements OnModuleInit {
               d = d;
               r += 1;
               allow = true;
-              if (contentType === 'video') {
+              if (contentType === 'video' && videoAdapId === adapId) {
                 totalDuration += parseInt(d) / timeScale;
               }
             }
@@ -280,7 +285,7 @@ export class AppService implements OnModuleInit {
             }
           }
 
-          if (contentType === 'video') {
+          if (contentType === 'video' && videoAdapId === adapId) {
             videoCountStartNumber = countStartNumber;
           }
 
