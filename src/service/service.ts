@@ -328,6 +328,7 @@ export class AppService implements OnModuleInit {
     } else {
       resultPlaylist.MPD.Period = totalPeriodResult;
       if (!live) {
+        totalDuration = Math.ceil(totalDuration);
         resultPlaylist.MPD['@_mediaPresentationDuration'] = moment.duration(totalDuration, 'seconds').format('PTHH[H]mm[M]s.SSS[S]');
       } else {
         resultPlaylist.MPD['@_publishTime'] = moment().toISOString();
