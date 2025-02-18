@@ -2,12 +2,17 @@ import { InjectRedis } from '@liaoliaots/nestjs-redis';
 import { CACHE_MANAGER, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { Redis } from 'ioredis';
+import * as _ from 'lodash';
 import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
 import { AppService } from 'src/service/service';
 
 @Injectable()
 export class ManifestConsumer implements OnModuleInit {
-  constructor(@InjectRedis() private readonly redisSub: Redis, @Inject(CACHE_MANAGER) private cacheManager: Cache, private appService: AppService) {}
+  constructor(
+    @InjectRedis() private readonly redisSub: Redis,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly appService: AppService,
+  ) {}
 
   onModuleInit() {
     this.redisSub.subscribe('manifest-upload', (err, count) => {

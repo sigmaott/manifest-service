@@ -1,26 +1,30 @@
-import { CacheModule, Module } from '@nestjs/common';
-import { Utils } from './helper/utils';
-import { Consts } from './helper/consts';
-import { RedisFsModule } from './redis-fs';
-import { HealthModule } from './health';
-import { AppService } from './service/service';
-import { AppController } from './controller/controller';
-import { ManifestConsumer } from './consumer/manifest.consumer';
 import { RedisModule } from '@liaoliaots/nestjs-redis';
+import { CacheModule, Module } from '@nestjs/common';
 import * as config from 'config';
+import * as _ from 'lodash';
+import { ManifestConsumer } from './consumer/manifest.consumer';
+import { AppController } from './controller/controller';
+import { HealthModule } from './health';
+import { Consts } from './helper/consts';
+import { Utils } from './helper/utils';
+import { RedisFsModule } from './redis-fs';
+import { AppService } from './service/service';
+import { StorageFsService } from './service/storage.fs.service';
 
 @Module({
-  imports: [
+  imports: _.compact([
     CacheModule.register(),
-    RedisFsModule,
     HealthModule,
-    RedisModule.forRoot({
-      closeClient: true,
-      readyLog: true,
-      config: config.redis,
-    }),
-  ],
+    _.get(config, 'redis') ? RedisFsModule : undefined,
+    _.get(config, 'redis')
+      ? RedisModule.forRoot({
+          closeClient: true,
+          readyLog: true,
+          config: config.redis,
+        })
+      : undefined,
+  ]),
   controllers: [AppController],
-  providers: [Utils, AppService, Consts, ManifestConsumer],
+  providers: _.compact([Utils, AppService, Consts, _.get(config, 'redis') ? ManifestConsumer : undefined, StorageFsService]),
 })
 export class AppModule {}

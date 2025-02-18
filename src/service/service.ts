@@ -1,18 +1,19 @@
 import { BadRequestException, CACHE_MANAGER, Inject, Injectable, NotFoundException, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
-import { Utils } from '../helper/utils';
-import { Consts, ManifestContentTypeEnum } from '../helper/consts';
+import { Cache } from 'cache-manager';
 import * as config from 'config';
-import * as path from 'path';
-import * as HLS from 'hls-parser';
-import * as lodash from 'lodash';
 import * as events from 'events';
 import * as parser from 'fast-xml-parser';
-import { RedisFsService } from '../redis-fs';
-import { Cache } from 'cache-manager';
+import * as HLS from 'hls-parser';
+import * as lodash from 'lodash';
+import { Moment } from 'moment';
+import * as path from 'path';
 import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
 import { DefaultOptions } from 'src/helper/dash.helper';
 import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
-import { Moment } from 'moment';
+import { Utils } from 'src/helper/utils';
+import { Consts, ManifestContentTypeEnum } from '../helper/consts';
+import { RedisFsService } from '../redis-fs/service';
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const moment = require('moment');
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -30,7 +31,19 @@ export class AppService implements OnModuleInit {
   public get manifestEvent() {
     return this._manifestEvent;
   }
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache, private utils: Utils, private consts: Consts, private redisFsService: RedisFsService) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private utils: Utils,
+    private consts: Consts,
+    private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
+  ) {}
+
+  // constructor(
+  //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  //   private utils: Utils,
+  //   private consts: Consts,
+  //   private readonly redisFsService: StorageFsService,
+  // ) {}
 
   onModuleInit() {
     this._manifestEvent.setMaxListeners(Infinity);
@@ -54,6 +67,12 @@ export class AppService implements OnModuleInit {
       const variant = variants[i];
       if (start || stop || timeshift) {
         variant.uri = path.join('/', `${variant.uri}?${this.utils.genPlaylistQuery(manifestDto)}`);
+        if (variant.audio?.length) {
+          for (let j = 0; j < variant.audio.length; j++) {
+            const audio = variant.audio[j];
+            audio.uri = path.join('/', `${audio.uri}?${this.utils.genPlaylistQuery(manifestDto)}`);
+          }
+        }
       }
     }
     return HLS.stringify(playlist);

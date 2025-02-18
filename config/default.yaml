@@ -1,11 +1,13 @@
 ---
 server:
   port: 3000
-prefix: manifest-service
+prefix: "manifest"
 name_concat:
-  catchup: timeshifting
+  catchup: startover
   startover: 'startover'
 catchup_replace: ''
-redis:
-  host: localhost
-  port: 6379
+# redis:
+#   host: localhost
+#   port: 6379
+fs:
+  prefix: /Users/vietanha34/Documents/workspace/nodejs/manifest-service/test
