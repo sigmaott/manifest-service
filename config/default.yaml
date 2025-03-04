@@ -3,8 +3,8 @@ server:
   port: 3000
 prefix: "manifest"
 name_concat:
-  catchup: startover
-  startover: 'startover'
+  catchup: timeshifting
+  startover: 'timeshifting'
 catchup_replace: ''
 # redis:
 #   host: localhost

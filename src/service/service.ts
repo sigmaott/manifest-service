@@ -1,4 +1,4 @@
-import { BadRequestException, CACHE_MANAGER, Inject, Injectable, NotFoundException, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, CACHE_MANAGER, Inject, Injectable, Logger, NotFoundException, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import * as config from 'config';
 import * as events from 'events';
@@ -11,8 +11,8 @@ import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
 import { DefaultOptions } from 'src/helper/dash.helper';
 import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
 import { Utils } from 'src/helper/utils';
+import { RedisFsService } from 'src/redis-fs/service';
 import { Consts, ManifestContentTypeEnum } from '../helper/consts';
-import { RedisFsService } from '../redis-fs/service';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const moment = require('moment');
@@ -27,6 +27,7 @@ const JsonParser = new JSONparser(DefaultOptions);
 @Injectable()
 export class AppService implements OnModuleInit {
   private readonly _manifestEvent = new events.EventEmitter();
+  private readonly logger = new Logger(AppService.name);
 
   public get manifestEvent() {
     return this._manifestEvent;
@@ -42,7 +43,7 @@ export class AppService implements OnModuleInit {
   //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
   //   private utils: Utils,
   //   private consts: Consts,
-  //   private readonly redisFsService: StorageFsService,
+  //   private readonly redisFsService: StorageHttpService,
   // ) {}
 
   onModuleInit() {
@@ -226,6 +227,7 @@ export class AppService implements OnModuleInit {
         let videoAdapId = ''; // video AdaptionSetId
         const adapSetsResult = [];
         let allowPeriod = false;
+        let videoInitTimeOffset = 0;
         for (let j = 0; j < adapSets.length; j++) {
           const adapSet = adapSets[j];
           const contentType = adapSet['@_contentType'];
@@ -247,18 +249,23 @@ export class AppService implements OnModuleInit {
           const currentTime = moment(timeStart).utc();
           let segmentTimeInit = 0;
           const resultSegment = [];
+          let initTimeOffset = 0;
           for (let z = 0; z < segments.length; z++) {
             const segment = segments[z];
             let { '@_t': t, '@_d': d, '@_r': r } = segment;
             if (t) {
               segmentTimeInit = parseInt(t);
+              initTimeOffset = parseInt(t);
+              if (contentType === 'video' && videoAdapId === adapId) {
+                videoInitTimeOffset = segmentTimeInit / timeScale;
+              }
               // currentTime.add(segmentTimeInit / timeScale, 'seconds');
             }
             const repeatSegment = parseInt(r) + 1 || 1;
             let allow = false;
             r = 0;
             for (let x = 0; x < repeatSegment; x++) {
-              if (contentType === 'audio' && countStartNumber < videoCountStartNumber && videoAdapId === adapId) {
+              if (contentType === 'audio' && countStartNumber < videoCountStartNumber) {
                 // remove segment
                 // console.log(currentTime.diff(start), countStartNumber, contentType);
                 segmentTimeInit += parseInt(d);
@@ -309,7 +316,14 @@ export class AppService implements OnModuleInit {
           }
 
           segTemResult['@_startNumber'] = (startNumber + countStartNumber).toString();
-          if (!live) segTemResult['@_presentationTimeOffset'] = segmentTimeInit.toString();
+          if (!live) {
+            segTemResult['@_presentationTimeOffset'] = segmentTimeInit.toString();
+          } else {
+            periodResult['@_start'] = moment.duration(videoInitTimeOffset, 'seconds').format('PTHH[H]mm[M]s.SSS[S]');
+            segTemResult['@_presentationTimeOffset'] = initTimeOffset.toString();
+
+            // delete segTemResult['@_presentationTimeOffset'];
+          }
           if (resultSegment.length === 0) {
             // xoá hết period này luôn
             break;
@@ -351,7 +365,7 @@ export class AppService implements OnModuleInit {
         resultPlaylist.MPD['@_mediaPresentationDuration'] = moment.duration(totalDuration, 'seconds').format('PTHH[H]mm[M]s.SSS[S]');
       } else {
         resultPlaylist.MPD['@_publishTime'] = moment().toISOString();
-        resultPlaylist.MPD['@_availabilityStartTime'] = availableTimeStart.subtract(initTime, 'seconds').toISOString();
+        // resultPlaylist.MPD['@_availabilityStartTime'] = availableTimeStart.add(initTime, 'seconds').toISOString();
       }
     }
     return resultPlaylist;

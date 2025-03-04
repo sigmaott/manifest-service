@@ -1,11 +1,11 @@
+import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './module';
-import * as morgan from 'morgan';
+import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
 import * as config from 'config';
 import * as helmet from 'helmet';
-import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
-import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
+import * as morgan from 'morgan';
 import { AllExceptionsFilter } from './helper/http-exception.filter';
+import { AppModule } from './module';
 const port = config.server.port;
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
