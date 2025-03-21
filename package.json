@@ -73,8 +73,8 @@
     "semver": "^7.5.4"
   },
   "devDependencies": {
-    "@nestjs/cli": "^8.2.8",
-    "@nestjs/schematics": "^8.0.11",
+    "@nestjs/cli": "^10.0.0",
+    "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^9.4.3",
     "@types/cache-manager": "^5.0.0",
     "@types/config": "^3.3.3",
