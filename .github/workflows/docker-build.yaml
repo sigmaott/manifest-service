@@ -47,7 +47,28 @@ jobs:
           tags: ${{ env.DOCKER_IMAGE }}:${{ env.SHORT_SHA }}
           load: true
 
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_IMAGE }}:${{ env.SHORT_SHA }}
+          format: 'table'
+          output: 'trivy-results.sarif'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m'
+          scanners: 'vuln'
+          security-checks: 'vuln'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
       - name: Push Docker image
+        if: success()
         uses: docker/build-push-action@v5
         with:
           context: .
