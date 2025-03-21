@@ -1,0 +1,55 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+      - tv360
+  pull_request:
+    branches:
+      - tv360
+
+env:
+  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/manifest-service
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Get Short SHA
+        id: get_short_sha
+        run: |
+            echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+            echo "::set-output name=SHORT_SHA::$SHORT_SHA"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Echo SHORT_SHA value
+        run: |
+         echo "SHORT_SHA value is: ${{ env.SHORT_SHA }}"
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.SHORT_SHA }}
+          load: true
+
+      - name: Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.SHORT_SHA }}
