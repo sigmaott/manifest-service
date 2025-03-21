@@ -1,4 +1,4 @@
-FROM registry.gviet.vn:5000/library/node:16 as builder
+FROM node:18-slim as builder
 
 # create working dir
 WORKDIR /usr/src/app
@@ -17,7 +17,7 @@ RUN yarn prebuild && yarn build
 # RUN npm install --only=production
 
 ################## 
-FROM registry.gviet.vn:5000/library/node:16 as installer
+FROM node:18-slim as installer
 
 WORKDIR /usr/src/app
 COPY ./package.json .
@@ -25,7 +25,7 @@ COPY ./yarn.lock .
 RUN yarn install --prod
 
 ####################
-FROM node:16-slim
+FROM node:18-slim
 
 WORKDIR /usr/src/app
 
