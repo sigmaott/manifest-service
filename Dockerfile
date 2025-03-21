@@ -3,6 +3,8 @@ FROM node:18.19.0 as builder
 # Set environment variables for Node
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV YARN_CACHE_FOLDER=/usr/src/app/.yarn-cache
+ENV UV_THREADPOOL_SIZE=64
+ENV NODE_ENV=production
 
 # Create working dir
 WORKDIR /usr/src/app
@@ -23,19 +25,20 @@ COPY . .
 RUN yarn build
 
 ################## 
-FROM node:18.19.0 as installer
+FROM node:18.19.0-slim as installer
 
 WORKDIR /usr/src/app
 COPY ./package.json .
 COPY ./yarn.lock .
 
 ENV YARN_CACHE_FOLDER=/usr/src/app/.yarn-cache
+ENV NODE_ENV=production
 RUN mkdir -p $YARN_CACHE_FOLDER && \
     yarn config set network-timeout 300000 && \
     yarn install --prod --frozen-lockfile --network-concurrency 1
 
 ####################
-FROM node:18.19.0
+FROM node:18.19.0-slim
 
 WORKDIR /usr/src/app
 
@@ -48,9 +51,13 @@ COPY config ./config
 # Set environment variables
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV UV_THREADPOOL_SIZE=64
 
-# Expose port
-EXPOSE 3000
+# Add tini for proper signal handling
+RUN apt-get update && apt-get install -y --no-install-recommends tini && rm -rf /var/lib/apt/lists/*
 
-# Start the server using node directly
+# Use tini as entrypoint
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Start the application
 CMD ["node", "--trace-warnings", "--dns-result-order=ipv4first", "dist/main"]
