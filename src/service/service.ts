@@ -1,4 +1,5 @@
-import { BadRequestException, CACHE_MANAGER, Inject, Injectable, Logger, NotFoundException, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import * as config from 'config';
 import * as events from 'events';
@@ -10,7 +11,7 @@ import { Moment } from 'moment';
 import 'moment-duration-format';
 import * as path from 'path';
 import { ManifestFilteringDto } from '../dto/manifest-filtering.dto';
-import { Consts, ManifestContentTypeEnum } from '../helper/consts';
+import { ManifestContentTypeEnum } from '../helper/consts';
 import { DefaultOptions } from '../helper/dash.helper';
 import { IHlsManifestUpdate } from '../helper/interface/hls.interface';
 import { Utils } from '../helper/utils';
@@ -35,7 +36,6 @@ export class AppService implements OnModuleInit {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private utils: Utils,
-    private consts: Consts,
     private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
   ) {
     this.parser = new XMLParser(DefaultOptions);
