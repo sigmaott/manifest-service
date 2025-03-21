@@ -2,32 +2,32 @@ import { BadRequestException, CACHE_MANAGER, Inject, Injectable, Logger, NotFoun
 import { Cache } from 'cache-manager';
 import * as config from 'config';
 import * as events from 'events';
-import { XMLParser } from 'fast-xml-parser';
+import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import * as HLS from 'hls-parser';
 import * as lodash from 'lodash';
+import * as moment from 'moment';
 import { Moment } from 'moment';
+import 'moment-duration-format';
 import * as path from 'path';
-import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
-import { DefaultOptions } from 'src/helper/dash.helper';
-import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
-import { Utils } from 'src/helper/utils';
-import { RedisFsService } from 'src/redis-fs/service';
+import { ManifestFilteringDto } from '../dto/manifest-filtering.dto';
 import { Consts, ManifestContentTypeEnum } from '../helper/consts';
+import { DefaultOptions } from '../helper/dash.helper';
+import { IHlsManifestUpdate } from '../helper/interface/hls.interface';
+import { Utils } from '../helper/utils';
+import { RedisFsService } from '../redis-fs/service';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const moment = require('moment');
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const momentDurationFormatSetup = require('moment-duration-format');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const JSONparser = require('fast-xml-parser').j2xParser;
-
-const JsonParser = new JSONparser(DefaultOptions);
+declare module 'moment' {
+  interface Duration {
+    format(template: string): string;
+  }
+}
 
 @Injectable()
 export class AppService implements OnModuleInit {
   private readonly _manifestEvent = new events.EventEmitter();
   private readonly logger = new Logger(AppService.name);
+  private readonly parser: XMLParser;
+  private readonly builder: XMLBuilder;
 
   public get manifestEvent() {
     return this._manifestEvent;
@@ -37,7 +37,10 @@ export class AppService implements OnModuleInit {
     private utils: Utils,
     private consts: Consts,
     private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
-  ) {}
+  ) {
+    this.parser = new XMLParser(DefaultOptions);
+    this.builder = new XMLBuilder(DefaultOptions);
+  }
 
   // constructor(
   //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -81,7 +84,7 @@ export class AppService implements OnModuleInit {
 
   async genDashMasterPlaylist(filePath: string, manifestDto: ManifestFilteringDto, query): Promise<string> {
     const { start, stop, timeshift } = manifestDto;
-    let mpd = new XMLParser(DefaultOptions).parse(await this.redisFsService.read(filePath));
+    let mpd = this.parser.parse(await this.redisFsService.read(filePath));
     if (!this.utils.validDashMpd(mpd)) return '';
     if (timeshift || (start && stop)) {
       // need to handle timeshifting
@@ -103,6 +106,15 @@ export class AppService implements OnModuleInit {
       }
     }
     const periods = this.utils.convertObjectToArray(mpd?.MPD?.Period);
+    if (!Array.isArray(periods)) {
+      return '<?xml version="1.0" encoding="utf-8"?>\n' + this.builder.build(mpd);
+    }
+    periods.sort((a, b) => {
+      if (!a['@_start'] || !b['@_start']) {
+        return 0;
+      }
+      return moment.duration(a['@_start']).asSeconds() - moment.duration(b['@_start']).asSeconds();
+    });
     for (let i = 0; i < periods.length; i++) {
       const period = periods[i];
       const adaptionSets = this.utils.convertObjectToArray(period.AdaptationSet);
@@ -135,7 +147,7 @@ export class AppService implements OnModuleInit {
         adaptionSet.Representation = reps;
       }
     }
-    return '<?xml version="1.0" encoding="utf-8"?>\n' + JsonParser.parse(mpd, DefaultOptions);
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + this.builder.build(mpd);
   }
 
   /**
@@ -148,10 +160,10 @@ export class AppService implements OnModuleInit {
    * - tạo VOD playlist:
    * + sửa type=static
    * + bỏ hết thuộc tính sau type
-   * + thêm thuộc tính mediaPresentationDuration là tổng thời gian video đã cắt
+   * + thêm thuộc tính mediaPresentationDuration là tổng thởi gian video đã cắt
    * - tạo LIVE playlist:
-   * + set publishTime là thời gian hiện tại
-   * + set availabilityStartTime = publishTime - tổng thời gian video đã cắt
+   * + set publishTime là thởi gian hiện tại
+   * + set availabilityStartTime = publishTime - tổng thởi gian video đã cắt
    * @param dirname
    * @param start
    * @param stop
@@ -176,7 +188,7 @@ export class AppService implements OnModuleInit {
       if (!currentPlaylistString) {
         continue;
       }
-      const currentPlaylist = new XMLParser(DefaultOptions).parse(currentPlaylistString);
+      const currentPlaylist = this.parser.parse(currentPlaylistString);
       // valid mpd
       if (!this.utils.validDashMpd(currentPlaylist)) continue;
       if (!resultPlaylist) {
@@ -217,7 +229,7 @@ export class AppService implements OnModuleInit {
         if (!availableTimeStart) {
           availableTimeStart = moment(timeStart).utc();
         }
-        const adapSets = this.utils.convertObjectToArray(period?.AdaptationSet).sort((a, b) => {
+        const adapSets = this.utils.convertObjectToArray(period?.AdaptationSet).sort((a) => {
           if (a['@_contentType'] === 'video') {
             return -1;
           }
