@@ -1,5 +1,7 @@
 import { RedisModule } from '@liaoliaots/nestjs-redis';
-import { CacheModule, HttpModule, Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
+import { HttpModule } from '@nestjs/axios';
+import { Module } from '@nestjs/common';
 import * as config from 'config';
 import * as _ from 'lodash';
 import { ManifestConsumer } from './consumer/manifest.consumer';
@@ -14,15 +16,21 @@ import { StorageFsService } from './service/storage.fs.service';
 
 @Module({
   imports: _.compact([
-    CacheModule.register(),
-    HttpModule,
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 60, // default cache TTL in seconds
+    }),
+    HttpModule.register({
+      timeout: 5000,
+      maxRedirects: 5,
+    }),
     HealthModule,
     _.get(config, 'redis') ? RedisFsModule : undefined,
     _.get(config, 'redis')
       ? RedisModule.forRoot({
           closeClient: true,
           readyLog: true,
-          config: config.redis,
+          config: config.get('redis'),
         })
       : undefined,
   ]),

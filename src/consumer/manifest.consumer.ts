@@ -1,36 +1,51 @@
 import { InjectRedis } from '@liaoliaots/nestjs-redis';
-import { CACHE_MANAGER, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Process, Processor } from '@nestjs/bull';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cache } from 'cache-manager';
+import { Job } from 'bull';
 import { Redis } from 'ioredis';
-import * as _ from 'lodash';
-import { IHlsManifestUpdate } from 'src/helper/interface/hls.interface';
-import { AppService } from 'src/service/service';
+import { IHlsManifestUpdate } from '../interface/manifest.interface';
+import { AppService } from '../service/service';
 
 @Injectable()
-export class ManifestConsumer implements OnModuleInit {
-  constructor(
-    @InjectRedis() private readonly redisSub: Redis,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-    private readonly appService: AppService,
-  ) {}
+@Processor('manifest')
+export class ManifestConsumer {
+  private readonly logger = new Logger(ManifestConsumer.name);
 
-  onModuleInit() {
-    this.redisSub.subscribe('manifest-upload', (err, count) => {
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @InjectRedis() private readonly redisSub: Redis,
+    private readonly appService: AppService,
+  ) {
+    this.redisSub.subscribe('manifest', (err) => {
       if (err) {
-        // Just like other commands, subscribe() can fail for some reasons,
-        // ex network issues.
-        console.error('Failed to subscribe: %s', err.message);
-      } else {
-        // `count` represents the number of channels this client are currently subscribed to.
-        console.log(`Subscribed successfully! This client is currently subscribed to ${count} channels.`);
+        this.logger.error('Failed to subscribe:', err);
+        return;
       }
+      this.logger.log('Subscribed to manifest channel');
     });
 
     this.redisSub.on('message', (channel, message) => {
-      console.log(`Received ${message} from ${channel}`);
+      this.logger.debug(`Received message from ${channel}`);
       const data = JSON.parse(message) as IHlsManifestUpdate;
-      this.cacheManager.set(`LLHLS-${data.path}`, { msn: data.msn, part: data.part }, { ttl: 100 });
+      this.cacheManager.set(`LLHLS-${data.path}`, { msn: data.msn, part: data.part }, 100);
       this.appService.manifestEvent.emit(data.path, data);
     });
+  }
+
+  @Process('llhls')
+  async handleLLHLS(job: Job<IHlsManifestUpdate>) {
+    try {
+      const data = job.data;
+      this.logger.debug(`Processing LLHLS job: ${JSON.stringify(data)}`);
+      await this.cacheManager.set(
+        `LLHLS-${data.path}`,
+        { msn: data.msn, part: data.part },
+        100
+      );
+    } catch (error) {
+      this.logger.error('Error processing LLHLS job:', error);
+    }
   }
 }

@@ -1,17 +1,19 @@
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import * as config from 'config';
-import * as helmet from 'helmet';
 import * as morgan from 'morgan';
 import { AllExceptionsFilter } from './helper/http-exception.filter';
 import { AppModule } from './module';
-const port = config.server.port;
+
+const port = Number(config.get('server.port'));
+
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
-  // app.enable('trust proxy');
-  app.use(helmet());
-  // app.use(morgan('combined'));
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+
+  // Security middleware
+  // await app.register(fastifyHelmet);
+
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   enableLogRequest(app);

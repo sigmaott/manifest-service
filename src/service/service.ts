@@ -2,7 +2,7 @@ import { BadRequestException, CACHE_MANAGER, Inject, Injectable, Logger, NotFoun
 import { Cache } from 'cache-manager';
 import * as config from 'config';
 import * as events from 'events';
-import * as parser from 'fast-xml-parser';
+import { XMLParser } from 'fast-xml-parser';
 import * as HLS from 'hls-parser';
 import * as lodash from 'lodash';
 import { Moment } from 'moment';
@@ -81,7 +81,7 @@ export class AppService implements OnModuleInit {
 
   async genDashMasterPlaylist(filePath: string, manifestDto: ManifestFilteringDto, query): Promise<string> {
     const { start, stop, timeshift } = manifestDto;
-    let mpd = parser.parse(await this.redisFsService.read(filePath), DefaultOptions);
+    let mpd = new XMLParser(DefaultOptions).parse(await this.redisFsService.read(filePath));
     if (!this.utils.validDashMpd(mpd)) return '';
     if (timeshift || (start && stop)) {
       // need to handle timeshifting
@@ -141,7 +141,7 @@ export class AppService implements OnModuleInit {
   /**
    *
    * - cắt danh sách ts: sửa ở SegmentTemplate
-   * + id của period chứa thời gian bắt đầu
+   * + id của period chứa thởi gian bắt đầu
    * + Xóa tag <S /> và tăng startNumber
    * + Nếu period không còn tag <S /> thì xóa đi
    * + tag <S /> đầu tiên bắt buộc phải có field t là start time của video
@@ -167,7 +167,7 @@ export class AppService implements OnModuleInit {
     let availableTimeStart = null;
     let lastPeriod = null;
     let initTime = 0;
-    const fileName = `${baseName}-${live ? config.name_concat?.startover : config.name_concat.catchup}.mpd`;
+    const fileName = `${baseName}-${live ? config.get('name_concat.startover') : config.get('name_concat.catchup')}.mpd`;
     for (let j = 0; j <= compareTime; j++) {
       const current = moment(start).utc();
       current.add(j, 'hour');
@@ -176,7 +176,7 @@ export class AppService implements OnModuleInit {
       if (!currentPlaylistString) {
         continue;
       }
-      const currentPlaylist = parser.parse(currentPlaylistString, DefaultOptions);
+      const currentPlaylist = new XMLParser(DefaultOptions).parse(currentPlaylistString);
       // valid mpd
       if (!this.utils.validDashMpd(currentPlaylist)) continue;
       if (!resultPlaylist) {
@@ -329,9 +329,12 @@ export class AppService implements OnModuleInit {
             break;
           } else {
             segTemResult.SegmentTimeline.S = resultSegment;
-            if (config.catchup_replace && !live) {
-              segTemResult['@_initialization'] = segTemResult['@_initialization'].replace(new RegExp('/media-static/[0-9abcdef]*'), config.catchup_replace);
-              segTemResult['@_media'] = segTemResult['@_media'].replace(new RegExp('/media-static/[0-9abcdef]*'), config.catchup_replace);
+            if (config.get('catchup_replace') && !live) {
+              segTemResult['@_initialization'] = segTemResult['@_initialization'].replace(
+                new RegExp('/media-static/[0-9abcdef]*'),
+                config.get('catchup_replace'),
+              );
+              segTemResult['@_media'] = segTemResult['@_media'].replace(new RegExp('/media-static/[0-9abcdef]*'), config.get('catchup_replace'));
             }
             adapSetResult.SegmentTemplate = segTemResult;
             if (needMergePeriod) {
@@ -440,10 +443,10 @@ export class AppService implements OnModuleInit {
     if (!media && !isRawRequest && manifestType === 'hls') {
       if (timeshift) {
         filePath = filePath.split('.m3u8')[0];
-        filePath = filePath + '-' + config.name_concat?.startover + '.m3u8';
+        filePath = filePath + '-' + config.get('name_concat.startover') + '.m3u8';
       } else if (start && stop) {
         filePath = filePath.split('.m3u8')[0];
-        filePath = filePath + '-' + config.name_concat?.catchup + '.m3u8';
+        filePath = filePath + '-' + config.get('name_concat.catchup') + '.m3u8';
       }
     }
     if (lodash.isNumber(_HLS_msn) || lodash.isNumber(_HLS_part)) {
@@ -525,8 +528,8 @@ export class AppService implements OnModuleInit {
         //     );
         //   }
         // }
-        if (config.catchup_replace) {
-          segment.uri = segment.uri.replace(new RegExp('/media-static/[0-9abcdef]*'), config.catchup_replace);
+        if (config.get('catchup_replace')) {
+          segment.uri = segment.uri.replace(new RegExp('/media-static/[0-9abcdef]*'), config.get('catchup_replace'));
         }
         delete segment.programDateTime;
         resultPlaylist.segments.push(segment);
@@ -626,7 +629,7 @@ export class AppService implements OnModuleInit {
           ttl = 5 * 60;
         }
       }
-      await this.cacheManager.set(filePath, data, { ttl });
+      await this.cacheManager.set(filePath, data, ttl);
     }
     return data.toString();
   }
