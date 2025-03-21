@@ -1,9 +1,9 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
-import * as config from 'config';
-import { firstValueFrom, map } from 'rxjs';
 import { AxiosResponse } from 'axios';
+import * as config from 'config';
 import * as _ from 'lodash';
+import { firstValueFrom, map } from 'rxjs';
 
 @Injectable()
 export class StorageHttpService {

@@ -2,8 +2,8 @@ import { InjectRedis } from '@liaoliaots/nestjs-redis';
 import { Process, Processor } from '@nestjs/bull';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Cache } from 'cache-manager';
 import { Job } from 'bull';
+import { Cache } from 'cache-manager';
 import { Redis } from 'ioredis';
 import { IHlsManifestUpdate } from '../interface/manifest.interface';
 import { AppService } from '../service/service';
@@ -13,11 +13,7 @@ import { AppService } from '../service/service';
 export class ManifestConsumer {
   private readonly logger = new Logger(ManifestConsumer.name);
 
-  constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    @InjectRedis() private readonly redisSub: Redis,
-    private readonly appService: AppService,
-  ) {
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache, @InjectRedis() private readonly redisSub: Redis, private readonly appService: AppService) {
     this.redisSub.subscribe('manifest', (err) => {
       if (err) {
         this.logger.error('Failed to subscribe:', err);
@@ -39,11 +35,7 @@ export class ManifestConsumer {
     try {
       const data = job.data;
       this.logger.debug(`Processing LLHLS job: ${JSON.stringify(data)}`);
-      await this.cacheManager.set(
-        `LLHLS-${data.path}`,
-        { msn: data.msn, part: data.part },
-        100
-      );
+      await this.cacheManager.set(`LLHLS-${data.path}`, { msn: data.msn, part: data.part }, 100);
     } catch (error) {
       this.logger.error('Error processing LLHLS job:', error);
     }
