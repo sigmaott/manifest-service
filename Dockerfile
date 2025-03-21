@@ -1,4 +1,4 @@
-FROM node:18.13.0 as builder
+FROM node:18.19.0 as builder
 
 # create working dir
 WORKDIR /usr/src/app
@@ -13,12 +13,12 @@ RUN yarn install
 
 COPY . . 
 
-RUN yarn tsc
+RUN yarn build
 # If you are building your code for production
 # RUN npm install --only=production
 
 ################## 
-FROM node:18.13.0 as installer
+FROM node:18.19.0 as installer
 
 WORKDIR /usr/src/app
 COPY ./package.json .
@@ -26,7 +26,7 @@ COPY ./yarn.lock .
 RUN yarn install --prod
 
 ####################
-FROM node:18.13.0-slim
+FROM node:18.19.0-slim
 
 WORKDIR /usr/src/app
 
