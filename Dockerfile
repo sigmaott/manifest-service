@@ -1,4 +1,4 @@
-FROM node:18-slim as builder
+FROM node:18 as builder
 
 # create working dir
 WORKDIR /usr/src/app
@@ -17,7 +17,7 @@ RUN yarn prebuild && yarn build
 # RUN npm install --only=production
 
 ################## 
-FROM node:18-slim as installer
+FROM node:18 as installer
 
 WORKDIR /usr/src/app
 COPY ./package.json .
@@ -25,16 +25,19 @@ COPY ./yarn.lock .
 RUN yarn install --prod
 
 ####################
-FROM node:18-slim
+FROM node:18
 
 WORKDIR /usr/src/app
 
-COPY --chown=1001 config ./config
-COPY --from=builder --chown=1001 /usr/src/app/dist /usr/src/app/dist
-COPY --from=installer --chown=1001 /usr/src/app /usr/src/app
+COPY --from=installer /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/config ./config
+COPY --from=builder /usr/src/app/package.json .
+
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 USER 1001
 
 EXPOSE 8080
 
-CMD [ "yarn", "start:prod"]
+CMD ["node", "--trace-warnings", "--dns-result-order=ipv4first", "dist/main"]
