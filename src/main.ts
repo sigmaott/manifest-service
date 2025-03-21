@@ -1,9 +1,9 @@
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './module';
 import * as config from 'config';
 import * as morgan from 'morgan';
 import { AllExceptionsFilter } from './helper/http-exception.filter';
+import { AppModule } from './module';
 
 const port = Number(config.get('server.port'));
 

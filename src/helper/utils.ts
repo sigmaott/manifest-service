@@ -1,15 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { Consts } from './consts';
-import * as path from 'path';
-import * as moment from 'moment';
-import * as qs from 'querystring';
 import * as lodash from 'lodash';
+import * as moment from 'moment';
+import * as path from 'path';
+import * as qs from 'querystring';
 import { ManifestFilteringDto } from 'src/dto/manifest-filtering.dto';
+import { Consts } from './consts';
 
 @Injectable()
 export class Utils {
-  constructor(private consts: Consts) {}
-
   async sleep(ms) {
     return new Promise((resolve) => {
       setTimeout(resolve, ms);
@@ -92,7 +90,7 @@ export class Utils {
       const listVideoCodec = query['video_codec'];
       if (variant.codecs !== undefined) {
         const videoCodecVariant = variant.codecs.slice(0, 4);
-        const videoCodecMapping = this.consts.consts.mapping.video_codec;
+        const videoCodecMapping = Consts.consts.mapping.video_codec;
         const codec = videoCodecMapping[videoCodecVariant];
         if (listVideoCodec.includes(codec)) {
           videoCodecs.push(variant);
@@ -126,17 +124,17 @@ export class Utils {
   }
 
   validValueQuery(name: string, value: string): any {
-    if (!this.consts.consts.listName.includes(name)) {
+    if (!Consts.consts.listName.includes(name)) {
       return false;
     }
-    if (this.consts.consts.listNameDash.includes(name)) {
+    if (Consts.consts.listNameDash.includes(name)) {
       if (value.indexOf('-') === -1 || value.split('-').length !== 2) {
         return false;
       }
       const listRangeQuery = value.split('-');
       const minQuery = parseFloat(listRangeQuery[0]);
       const maxQuery = parseFloat(listRangeQuery[1]);
-      const listRangeLimit = this.consts.consts[name];
+      const listRangeLimit = Consts.consts[name];
       if (listRangeLimit !== undefined) {
         if (Number.isNaN(minQuery) || Number.isNaN(minQuery) || minQuery < listRangeLimit[0] || maxQuery > listRangeLimit[1]) {
           return false;
@@ -147,9 +145,9 @@ export class Utils {
       const message = 'dash';
       return message;
     }
-    if (this.consts.consts['listNameComma'].includes(name)) {
+    if (Consts.consts['listNameComma'].includes(name)) {
       const listValueQuery = value.split(',');
-      const acceptedValues = this.consts.consts[name];
+      const acceptedValues = Consts.consts[name];
       if (acceptedValues) {
         for (let i = 0; i < listValueQuery.length; ++i) {
           if (!acceptedValues.includes(listValueQuery[i].toLocaleLowerCase())) {
@@ -162,7 +160,7 @@ export class Utils {
     }
   }
   checkValidQueryPlayBack(start, stop) {
-    if (start.format() === this.consts.consts.INVALID_DATE || stop.format() === this.consts.consts.INVALID_DATE) {
+    if (start.format() === Consts.consts.INVALID_DATE || stop.format() === Consts.consts.INVALID_DATE) {
       const err = 'Start, stop time không chính xác';
       throw err;
     }

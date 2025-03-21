@@ -1,17 +1,21 @@
 import { Module } from '@nestjs/common';
-import { CacheModule } from '@nestjs/cache-manager';
-import * as redisStore from 'cache-manager-ioredis';
 import * as config from 'config';
+import { createClient } from '@redis/client';
 import { RedisFsService } from './service';
 
+const REDIS_PROVIDER = {
+  provide: 'REDIS_CLIENT',
+  useFactory: async () => {
+    const client = createClient({
+      url: `redis://${config.get('redis.host')}:${config.get('redis.port')}`,
+    });
+    await client.connect();
+    return client;
+  },
+};
+
 @Module({
-  imports: [
-    CacheModule.register({
-      store: redisStore,
-      ...(config.get('redis') as Record<string, unknown>),
-    }),
-  ],
-  providers: [RedisFsService],
-  exports: [RedisFsService],
+  providers: [REDIS_PROVIDER, RedisFsService],
+  exports: [RedisFsService, REDIS_PROVIDER],
 })
 export class RedisFsModule {}

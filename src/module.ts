@@ -1,13 +1,12 @@
-import { RedisModule } from '@liaoliaots/nestjs-redis';
-import { CacheModule } from '@nestjs/cache-manager';
 import { HttpModule } from '@nestjs/axios';
+import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
+import { redisStore } from 'cache-manager-redis-yet';
 import * as config from 'config';
 import * as _ from 'lodash';
 import { ManifestConsumer } from './consumer/manifest.consumer';
 import { AppController } from './controller/controller';
 import { HealthModule } from './health';
-import { Consts } from './helper/consts';
 import { Utils } from './helper/utils';
 import { RedisFsModule } from './redis-fs';
 import { StorageHttpService } from './service/http.fs.service';
@@ -16,9 +15,14 @@ import { StorageFsService } from './service/storage.fs.service';
 
 @Module({
   imports: _.compact([
-    CacheModule.register({
+    CacheModule.registerAsync({
       isGlobal: true,
-      ttl: 60, // default cache TTL in seconds
+      useFactory: async () => ({
+        store: await redisStore({
+          url: `redis://${config.get('redis.host')}:${config.get('redis.port')}`,
+          ttl: 60 * 1000, // 60 seconds
+        }),
+      }),
     }),
     HttpModule.register({
       timeout: 5000,
@@ -26,15 +30,8 @@ import { StorageFsService } from './service/storage.fs.service';
     }),
     HealthModule,
     _.get(config, 'redis') ? RedisFsModule : undefined,
-    _.get(config, 'redis')
-      ? RedisModule.forRoot({
-          closeClient: true,
-          readyLog: true,
-          config: config.get('redis'),
-        })
-      : undefined,
   ]),
   controllers: [AppController],
-  providers: _.compact([Utils, AppService, Consts, _.get(config, 'redis') ? ManifestConsumer : undefined, StorageFsService, StorageHttpService]),
+  providers: _.compact([Utils, AppService, _.get(config, 'redis') ? ManifestConsumer : undefined, StorageFsService, StorageHttpService]),
 })
 export class AppModule {}

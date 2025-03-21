@@ -1,18 +1,21 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Cache } from 'cache-manager';
 import { IFsService } from '../interface/fs.interface';
+import { RedisClientType } from '@redis/client';
+import * as path from 'path';
 
 @Injectable()
 export class RedisFsService implements IFsService {
   private readonly logger = new Logger(RedisFsService.name);
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  constructor(
+    @Inject('REDIS_CLIENT')
+    private readonly redisClient: RedisClientType,
+  ) {}
 
   async read(filePath: string): Promise<string> {
     this.logger.debug(`Reading file: ${filePath}`);
-    const data = await this.cacheManager.get<string>(filePath);
-    if (!data) {
+    const data = await this.redisClient.get(filePath);
+    if (data === null) {
       throw new Error(`File not found: ${filePath}`);
     }
     return data;
@@ -20,25 +23,24 @@ export class RedisFsService implements IFsService {
 
   async write(filePath: string, data: string): Promise<void> {
     this.logger.debug(`Writing file: ${filePath}`);
-    await this.cacheManager.set(filePath, data, 0);
-    
+    await this.redisClient.set(filePath, data);
     const dir = this.getDir(filePath);
     if (dir) {
-      await this.cacheManager.set(dir, data, 0);
+      await this.redisClient.set(dir, data);
     }
   }
 
-  async exist(filePath: string): Promise<boolean> {
-    const data = await this.cacheManager.get(filePath);
-    return data !== undefined && data !== null;
+  async exists(filePath: string): Promise<boolean> {
+    const result = await this.redisClient.exists(filePath);
+    return result === 1;
   }
 
   async delete(filePath: string): Promise<void> {
-    await this.cacheManager.del(filePath);
+    await this.redisClient.del(filePath);
   }
 
   private getDir(filePath: string): string {
-    const lastSlash = filePath.lastIndexOf('/');
-    return lastSlash > 0 ? filePath.substring(0, lastSlash) : '';
+    const dir = path.dirname(filePath);
+    return dir === '.' ? '' : dir;
   }
 }

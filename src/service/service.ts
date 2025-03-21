@@ -443,7 +443,7 @@ export class AppService implements OnModuleInit {
     // check query timeshift
     const manifestType = path.extname(filePath) === '.m3u8' ? 'hls' : path.extname(filePath) === '.mpd' ? 'dash' : null;
     if (!manifestType) {
-      if (!(await this.redisFsService.exist(filePath))) {
+      if (!(await this.redisFsService.exists(filePath))) {
         throw new NotFoundException('file not found');
       }
       return {
@@ -464,7 +464,7 @@ export class AppService implements OnModuleInit {
     if (lodash.isNumber(_HLS_msn) || lodash.isNumber(_HLS_part)) {
       return { manifest: await this.genLLHLSMediaPlaylist(manifestDto, filePath), contentType: ManifestContentTypeEnum.HLS };
     } else if (!media) {
-      if (!(await this.redisFsService.exist(filePath))) {
+      if (!(await this.redisFsService.exists(filePath))) {
         throw new NotFoundException('file not found');
       }
       if (isRawRequest) {
@@ -629,7 +629,7 @@ export class AppService implements OnModuleInit {
       console.log('get from cache: ', filePath);
       return data.toString();
     }
-    if (!(await this.redisFsService.exist(filePath))) {
+    if (!(await this.redisFsService.exists(filePath))) {
       return '';
     }
     data = await this.redisFsService.read(filePath);

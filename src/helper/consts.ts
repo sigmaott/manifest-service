@@ -5,8 +5,8 @@ export enum ManifestContentTypeEnum {
   HDS = 'application/f4m+xml',
 }
 
-export class Consts {
-  consts = {
+export const Consts = {
+  consts: {
     listName: [
       'audio_channels',
       'audio_codec',
@@ -51,5 +51,5 @@ export class Consts {
       MP4: '.mp4',
     },
     INVALID_DATE: 'Invalid date',
-  };
-}
+  },
+};
