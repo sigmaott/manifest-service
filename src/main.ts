@@ -1,18 +1,14 @@
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { AppModule } from './module';
 import * as config from 'config';
 import * as morgan from 'morgan';
 import { AllExceptionsFilter } from './helper/http-exception.filter';
-import { AppModule } from './module';
 
 const port = Number(config.get('server.port'));
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
-
-  // Security middleware
-  // await app.register(fastifyHelmet);
+  const app = await NestFactory.create(AppModule);
 
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
