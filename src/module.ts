@@ -1,7 +1,6 @@
 import { HttpModule } from '@nestjs/axios';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
-import { redisStore } from 'cache-manager-redis-yet';
 import * as config from 'config';
 import * as _ from 'lodash';
 import { ManifestConsumer } from './consumer/manifest.consumer';
@@ -15,14 +14,9 @@ import { StorageFsService } from './service/storage.fs.service';
 
 @Module({
   imports: _.compact([
-    CacheModule.registerAsync({
+    CacheModule.register({
       isGlobal: true,
-      useFactory: async () => ({
-        store: await redisStore({
-          url: `redis://${config.get('redis.host')}:${config.get('redis.port')}`,
-          ttl: 60 * 1000, // 60 seconds
-        }),
-      }),
+      ttl: 60 * 1000, // 60 seconds
     }),
     HttpModule.register({
       timeout: 5000,

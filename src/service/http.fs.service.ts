@@ -39,7 +39,7 @@ export class StorageHttpService {
     }
   }
 
-  async exist(inputPath: string): Promise<boolean> {
+  async exists(inputPath: string): Promise<boolean> {
     const url = `${this.apiUrl}${inputPath}`;
 
     try {

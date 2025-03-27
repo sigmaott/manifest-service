@@ -10,12 +10,12 @@ import * as moment from 'moment';
 import { Moment } from 'moment';
 import 'moment-duration-format';
 import * as path from 'path';
+import { DefaultOptions } from 'src/helper/dash.helper';
 import { ManifestFilteringDto } from '../dto/manifest-filtering.dto';
 import { ManifestContentTypeEnum } from '../helper/consts';
-import { DefaultOptions } from '../helper/dash.helper';
 import { IHlsManifestUpdate } from '../helper/interface/hls.interface';
 import { Utils } from '../helper/utils';
-import { RedisFsService } from '../redis-fs/service';
+import { StorageHttpService } from './http.fs.service';
 
 declare module 'moment' {
   interface Duration {
@@ -33,21 +33,23 @@ export class AppService implements OnModuleInit {
   public get manifestEvent() {
     return this._manifestEvent;
   }
+  // constructor(
+  //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  //   private utils: Utils,
+  //   private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
+  // ) {
+  //   this.parser = new XMLParser(DefaultOptions);
+  //   this.builder = new XMLBuilder(DefaultOptions);
+  // }
+
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private utils: Utils,
-    private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
+    private readonly redisFsService: StorageHttpService,
   ) {
     this.parser = new XMLParser(DefaultOptions);
     this.builder = new XMLBuilder(DefaultOptions);
   }
-
-  // constructor(
-  //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  //   private utils: Utils,
-  //   private consts: Consts,
-  //   private readonly redisFsService: StorageHttpService,
-  // ) {}
 
   onModuleInit() {
     this._manifestEvent.setMaxListeners(Infinity);
@@ -107,7 +109,7 @@ export class AppService implements OnModuleInit {
     }
     const periods = this.utils.convertObjectToArray(mpd?.MPD?.Period);
     if (!Array.isArray(periods)) {
-      return '<?xml version="1.0" encoding="utf-8"?>\n' + this.builder.build(mpd);
+      return this.builder.build(mpd);
     }
     periods.sort((a, b) => {
       if (!a['@_start'] || !b['@_start']) {
@@ -147,7 +149,8 @@ export class AppService implements OnModuleInit {
         adaptionSet.Representation = reps;
       }
     }
-    return '<?xml version="1.0" encoding="utf-8"?>\n' + this.builder.build(mpd);
+    // console.log(mpd.MPD.Period[0].AdaptationSet[0]);
+    return this.builder.build(mpd);
   }
 
   /**

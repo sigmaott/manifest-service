@@ -11,3 +11,7 @@ redis:
   port: 6379
 fs:
   prefix: /Users/vietanha34/Documents/workspace/nodejs/manifest-service/test
+
+storage: 
+  http:
+    url: http://origin-live-sdrm.tv360.vn/
