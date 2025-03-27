@@ -4,7 +4,7 @@ server:
   prefix: "manifest"
 name_concat:
   catchup: timeshifting
-  startover: 'timeshifting'
+  startover: 'startover'
 catchup_replace: ''
 redis:
   host: localhost

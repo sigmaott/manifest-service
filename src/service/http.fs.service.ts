@@ -21,7 +21,7 @@ export class StorageHttpService {
       const response = await firstValueFrom(this.httpService.get<string>(url).pipe(map((res) => res.data)));
       return response;
     } catch (err) {
-      this.logger.error(`Error reading file: ${inputPath}`, err);
+      this.logger.error(`Error reading file: ${inputPath}`, err.message);
       throw err;
     }
   }
@@ -34,7 +34,7 @@ export class StorageHttpService {
     try {
       await firstValueFrom(this.httpService.post(url, payload).pipe(map(() => void 0)));
     } catch (err) {
-      this.logger.error(`Error writing file: ${inputPath}`, err);
+      this.logger.error(`Error writing file: ${inputPath}`, err.message);
       throw err;
     }
   }
@@ -50,7 +50,7 @@ export class StorageHttpService {
         this.logger.debug(`File does not exist: ${url}`);
         return false;
       }
-      this.logger.error(`Error checking if file exists: ${url}`, err);
+      this.logger.error(`Error checking if file exists: ${url}`, err.message);
       return false;
     }
   }

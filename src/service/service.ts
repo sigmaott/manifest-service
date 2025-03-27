@@ -11,11 +11,11 @@ import { Moment } from 'moment';
 import 'moment-duration-format';
 import * as path from 'path';
 import { DefaultOptions } from 'src/helper/dash.helper';
+import { RedisFsService } from 'src/redis-fs';
 import { ManifestFilteringDto } from '../dto/manifest-filtering.dto';
 import { ManifestContentTypeEnum } from '../helper/consts';
 import { IHlsManifestUpdate } from '../helper/interface/hls.interface';
 import { Utils } from '../helper/utils';
-import { StorageHttpService } from './http.fs.service';
 
 declare module 'moment' {
   interface Duration {
@@ -33,23 +33,23 @@ export class AppService implements OnModuleInit {
   public get manifestEvent() {
     return this._manifestEvent;
   }
-  // constructor(
-  //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  //   private utils: Utils,
-  //   private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
-  // ) {
-  //   this.parser = new XMLParser(DefaultOptions);
-  //   this.builder = new XMLBuilder(DefaultOptions);
-  // }
-
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private utils: Utils,
-    private readonly redisFsService: StorageHttpService,
+    private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
   ) {
     this.parser = new XMLParser(DefaultOptions);
     this.builder = new XMLBuilder(DefaultOptions);
   }
+
+  // constructor(
+  //   @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  //   private utils: Utils,
+  //   private readonly redisFsService: StorageHttpService,
+  // ) {
+  //   this.parser = new XMLParser(DefaultOptions);
+  //   this.builder = new XMLBuilder(DefaultOptions);
+  // }
 
   onModuleInit() {
     this._manifestEvent.setMaxListeners(Infinity);

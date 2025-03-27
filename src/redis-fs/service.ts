@@ -1,16 +1,16 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { IFsService } from '../interface/fs.interface';
-import { RedisClientType } from '@redis/client';
+import { Injectable, Logger } from '@nestjs/common';
 import * as path from 'path';
+import { IFsService } from '../interface/fs.interface';
+import { RedisService } from './redis.provider';
 
 @Injectable()
 export class RedisFsService implements IFsService {
   private readonly logger = new Logger(RedisFsService.name);
+  private redisClient;
 
-  constructor(
-    @Inject('REDIS_CLIENT')
-    private readonly redisClient: RedisClientType,
-  ) {}
+  constructor(private redisService: RedisService) {
+    this.redisClient = this.redisService.getClient();
+  }
 
   async read(filePath: string): Promise<string> {
     this.logger.debug(`Reading file: ${filePath}`);
