@@ -16,6 +16,7 @@ import { ManifestFilteringDto } from '../dto/manifest-filtering.dto';
 import { ManifestContentTypeEnum } from '../helper/consts';
 import { IHlsManifestUpdate } from '../helper/interface/hls.interface';
 import { Utils } from '../helper/utils';
+import { StorageHttpService } from './http.fs.service';
 
 declare module 'moment' {
   interface Duration {
@@ -36,7 +37,8 @@ export class AppService implements OnModuleInit {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private utils: Utils,
-    private readonly redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
+    private redisFsService: RedisFsService, // private readonly redisFsService: StorageFsService,
+    private storageHttpService: StorageHttpService,
   ) {
     this.parser = new XMLParser(DefaultOptions);
     this.builder = new XMLBuilder(DefaultOptions);
@@ -52,6 +54,14 @@ export class AppService implements OnModuleInit {
   // }
 
   onModuleInit() {
+    if (lodash.get(config, 'storage.http.url')) {
+      // this.redisFsService = this.storageHttpService;
+      // Replaced direct assignment with a type-safe wrapper that exposes only the shared interface
+      this.redisFsService = {
+        read: (filePath: string) => this.storageHttpService.read(filePath),
+        exists: (filePath: string) => this.storageHttpService.exists(filePath),
+      } as RedisFsService;
+    }
     this._manifestEvent.setMaxListeners(Infinity);
   }
 
