@@ -48,6 +48,9 @@ export class ManifestFilteringDto extends UploadFileDto {
   @Max(24 * 60 * 60)
   @IsOptional()
   timeshift: number;
+
+  @IsOptional()
+  segmentPrefix: string;
 }
 
 function isNumeric(str) {

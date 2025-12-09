@@ -95,7 +95,7 @@ export class AppService implements OnModuleInit {
   }
 
   async genDashMasterPlaylist(filePath: string, manifestDto: ManifestFilteringDto, query): Promise<string> {
-    const { start, stop, timeshift } = manifestDto;
+    const { start, stop, timeshift, segmentPrefix } = manifestDto;
     let mpd = this.parser.parse(await this.redisFsService.read(filePath));
     if (!this.utils.validDashMpd(mpd)) return '';
     if (timeshift || (start && stop)) {
@@ -157,6 +157,17 @@ export class AppService implements OnModuleInit {
           continue;
         }
         adaptionSet.Representation = reps;
+
+        // Apply segmentPrefix to SegmentTemplate
+        if (segmentPrefix && adaptionSet.SegmentTemplate) {
+          const segTem = adaptionSet.SegmentTemplate;
+          if (segTem['@_initialization']) {
+            segTem['@_initialization'] = segmentPrefix + segTem['@_initialization'];
+          }
+          if (segTem['@_media']) {
+            segTem['@_media'] = segmentPrefix + segTem['@_media'];
+          }
+        }
       }
     }
     // console.log(mpd.MPD.Period[0].AdaptationSet[0]);
@@ -450,7 +461,7 @@ export class AppService implements OnModuleInit {
   }
 
   async manifestFiltering(filePath: string, manifestDto: ManifestFilteringDto): Promise<{ manifest: any; contentType: string }> {
-    const { start, stop, timeshift, manifestfilter, media, _HLS_msn, _HLS_part } = manifestDto;
+    const { start, stop, timeshift, manifestfilter, media, _HLS_msn, _HLS_part, segmentPrefix } = manifestDto;
     const query = this.utils.getValueQuery(manifestfilter);
     // this.utils.checkValidFormatPlayListHLS(filePath)
     // check query timeshift
@@ -464,7 +475,7 @@ export class AppService implements OnModuleInit {
         contentType: path.extname(filePath) === '.f4m' ? ManifestContentTypeEnum.HDS : path.extname(filePath) === '' ? ManifestContentTypeEnum.MSS : null,
       };
     }
-    const isRawRequest = this.utils.isRawRequest(start, stop, timeshift, query);
+    const isRawRequest = this.utils.isRawRequest(start, stop, timeshift, query, segmentPrefix);
     if (!media && !isRawRequest && manifestType === 'hls') {
       if (timeshift) {
         filePath = filePath.split('.m3u8')[0];

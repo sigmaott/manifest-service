@@ -226,8 +226,8 @@ export class Utils {
     return !!mpdJson?.MPD;
   }
 
-  isRawRequest(startTime, stopTime, timeShift, query) {
-    return !timeShift && (!startTime || !stopTime) && !Object.keys(query).length;
+  isRawRequest(startTime, stopTime, timeShift, query, segmentPrefix?: string) {
+    return !timeShift && (!startTime || !stopTime) && !Object.keys(query).length && !segmentPrefix;
   }
 
   validFilenameManifest(filePath) {
