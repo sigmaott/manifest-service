@@ -158,14 +158,15 @@ export class AppService implements OnModuleInit {
         }
         adaptionSet.Representation = reps;
 
-        // Apply segmentPrefix to SegmentTemplate
-        if (segmentPrefix && adaptionSet.SegmentTemplate) {
+        // Apply segmentPrefix to SegmentTemplate (priority: query > config)
+        const effectiveSegmentPrefix = segmentPrefix || config.get('segmentPrefix');
+        if (effectiveSegmentPrefix && adaptionSet.SegmentTemplate) {
           const segTem = adaptionSet.SegmentTemplate;
           if (segTem['@_initialization']) {
-            segTem['@_initialization'] = segmentPrefix + segTem['@_initialization'];
+            segTem['@_initialization'] = effectiveSegmentPrefix + segTem['@_initialization'];
           }
           if (segTem['@_media']) {
-            segTem['@_media'] = segmentPrefix + segTem['@_media'];
+            segTem['@_media'] = effectiveSegmentPrefix + segTem['@_media'];
           }
         }
       }

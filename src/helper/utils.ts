@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as config from 'config';
 import * as lodash from 'lodash';
 import * as moment from 'moment';
 import * as path from 'path';
@@ -227,7 +228,8 @@ export class Utils {
   }
 
   isRawRequest(startTime, stopTime, timeShift, query, segmentPrefix?: string) {
-    return !timeShift && (!startTime || !stopTime) && !Object.keys(query).length && !segmentPrefix;
+    const effectiveSegmentPrefix = segmentPrefix || config.get('segmentPrefix');
+    return !timeShift && (!startTime || !stopTime) && !Object.keys(query).length && !effectiveSegmentPrefix;
   }
 
   validFilenameManifest(filePath) {

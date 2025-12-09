@@ -4,14 +4,15 @@ server:
   prefix: "manifest"
 name_concat:
   catchup: timeshifting
-  startover: 'startover'
-catchup_replace: ''
+  startover: "startover"
+catchup_replace: ""
+segmentPrefix: ""
 redis:
   host: localhost
   port: 6379
 fs:
   prefix: /Users/vietanha34/Documents/workspace/nodejs/manifest-service/test
 
-storage: 
+storage:
   http:
     url: http://origin-live-sdrm.tv360.vn/
